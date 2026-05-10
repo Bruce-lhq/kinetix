@@ -20,6 +20,18 @@ _RE_REF = re.compile(r'^(\w+)\.(start|end)$')
 _RE_REF_OP = re.compile(r'^(\w+)\.(start|end)\s*([+-])\s*(\d+(?:\.\d+)?)s$')
 
 
+def _resolve_asset_paths(doc: KinetiXDocument, base_dir: Path) -> None:
+    """Resolve relative asset paths against the .ktx file's directory."""
+    for asset in doc.assets.values():
+        if asset.path == "__text__":
+            continue
+        p = Path(asset.path)
+        if not p.is_absolute():
+            resolved = (base_dir / p).resolve()
+            if resolved.exists():
+                asset.path = str(resolved)
+
+
 def resolve_timeline(doc: KinetiXDocument) -> None:
     """Resolve prev.end and expression times (v1.end-1s) to absolute seconds."""
     # Track resolved end times for all entries (indexed by asset_id)
@@ -168,6 +180,7 @@ def compile_ktx(ktx_path: str, output_path: str | None = None,
     source = Path(ktx_path).read_text(encoding="utf-8")
 
     doc = parse(source)
+    _resolve_asset_paths(doc, Path(ktx_path).resolve().parent)
     _apply_styles(doc)          # merge style blocks into entries
     resolve_timeline(doc)       # resolve prev.end, v1.end-1s etc.
     _merge_keyframe_entries(doc)
@@ -186,6 +199,7 @@ def live_mode(ktx_path: str, no_subtitles: bool = False) -> None:
     """Parse, resolve, and stream to ffplay without encoding to file."""
     source = Path(ktx_path).read_text(encoding="utf-8")
     doc = parse(source)
+    _resolve_asset_paths(doc, Path(ktx_path).resolve().parent)
     _apply_styles(doc)
     resolve_timeline(doc)
     _merge_keyframe_entries(doc)
@@ -196,6 +210,7 @@ def graph_mode(ktx_path: str, output_path: str | None = None) -> str:
     """Parse, resolve, and generate a timeline topology PNG."""
     source = Path(ktx_path).read_text(encoding="utf-8")
     doc = parse(source)
+    _resolve_asset_paths(doc, Path(ktx_path).resolve().parent)
     _apply_styles(doc)
     resolve_timeline(doc)
     _merge_keyframe_entries(doc)

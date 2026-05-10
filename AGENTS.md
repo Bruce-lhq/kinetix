@@ -18,7 +18,8 @@ kinetix/
   renderer.py      render / live_preview → moviepy + ffplay, easing + rotate + filter
   text_card.py     PIL 渲染 (自动换行, 行间距, 半透明背景块)
   subtitles.py     parse_srt(path) → list[Subtitle]
-  cli.py           argparse CLI (kinetix --live / --preview / --no-subtitles)
+  graphviz_timeline.py  generate_timeline_graph(doc) → PNG 时间轴拓扑图
+  cli.py           argparse CLI (kinetix --live / --preview / --graph / --no-subtitles)
 pyproject.toml     包配置 (console_scripts)
 requirements.txt   moviepy>=2.1, numpy>=1.24, Pillow>=10
 README.md          用户文档
@@ -29,15 +30,12 @@ README.md          用户文档
 ```
 .ktx 文本
   → parser.parse() → KinetiXDocument (assets + styles + timeline + output + subtitle_path)
+  → main._resolve_asset_paths(doc, base_dir)  (相对路径 → 绝对路径)
   → main._apply_styles(doc)            (style 属性合并到引用的 entry)
-  → main.resolve_timeline(doc)         (prev.end / v1.end-1s / v1.start+2s → 绝对秒数, speed 影响 duration)
+  → main.resolve_timeline(doc)         (prev.end / v1.end-1s → 绝对秒数, speed 影响 duration)
   → main._merge_keyframe_entries(doc)  (合并同名 entry 的关键帧)
   → main._compute_audio_ducking(doc)   (识别 voice/bgm 重叠区间)
-  → renderer.render() 或 renderer.live_preview()
-      video/image → _build_video_clip()  (cover → speed → crop → trim → anchor ← keyframes → filter → fade → mute)
-      text        → _build_text_clip()   (PIL + 自动换行 + 半透明背景块)
-      audio       → _build_audio_clip()  (trim → speed → volume)
-      → CompositeVideoClip + CompositeAudioClip → write_videofile 或 preview()
+  → renderer.render() / live_preview() / graphviz_timeline.generate_timeline_graph()
 ```
 
 ## 关键设计决策
@@ -131,4 +129,6 @@ git commit -m "<type>: <简短描述>"
 | 改 SRT 字幕 | `subtitles.py` → `parse_srt()` | `_build_subtitle_clips()` |
 | 改 CLI | `cli.py` → `main()` | `--live` / `--preview` / `--no-subtitles` |
 | 改实时预览 | `renderer.py` → `live_preview()` | `clip.preview()` |
+| 改时间轴图 | `graphviz_timeline.py` → `generate_timeline_graph()` | `rows`, y-axis ordering |
 | 改音频避让 | `main.py` → `_compute_audio_ducking()` | `track_role` |
+| 改路径解析 | `main.py` → `_resolve_asset_paths()` | `compile_ktx` / `live_mode` / `graph_mode` |
