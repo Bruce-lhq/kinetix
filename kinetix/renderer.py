@@ -1,7 +1,12 @@
-"""Renderer — builds moviepy Clip objects from the KinetiX AST."""
+"""Renderer — builds moviepy Clip objects from the KinetiX AST.
+
+Pro edition: easing curves, rotate keyframes, global filter support,
+live preview via ffplay.
+"""
 
 from __future__ import annotations
 
+import math
 import sys
 from pathlib import Path
 from typing import Any
@@ -21,8 +26,36 @@ from .text_card import render_text_card
 from .subtitles import parse_srt
 
 
+# ============================================================================
+# Live preview (ffplay pipe)
+# ============================================================================
+
+def live_preview(doc: KinetiXDocument) -> None:
+    """Stream the composite to ffplay for real-time preview (no encode)."""
+    size = doc.output.size
+    fps = doc.output.fps
+    video_clips, audio_clips = _build_all_clips(doc, size)
+
+    if not video_clips:
+        print("[error] no clips to preview")
+        return
+
+    video_clips.sort(key=lambda c: c.layer_order)
+    comp = CompositeVideoClip(video_clips, size=size)
+    if audio_clips:
+        comp = comp.with_audio(CompositeAudioClip(audio_clips))
+    comp = comp.with_duration(comp.duration)
+
+    print("[live] opening preview window...")
+    comp.preview(fps=fps)
+    comp.close()
+
+
+# ============================================================================
+# Image helpers
+# ============================================================================
+
 def _load_image_cover(path: str, canvas_size: tuple[int, int]) -> np.ndarray:
-    """Load image, crop to match aspect ratio, resize to exactly canvas_size."""
     from PIL import Image as PILImage, ImageOps
     img = PILImage.open(path)
     if img.mode == 'RGBA':
@@ -31,34 +64,20 @@ def _load_image_cover(path: str, canvas_size: tuple[int, int]) -> np.ndarray:
     return np.array(img)
 
 
-# ---------------------------------------------------------------------------
-# Anchor → position resolver
-# ---------------------------------------------------------------------------
-#
-# anchor = (x, y)  where x, y ∈ [-1, 1]  (screen coordinates, y↓)
-#   (-1, -1) → top-left        ( 0, -1) → top-center
-#   (-1,  0) → center-left     ( 0,  0) → center
-#   ( 1,  1) → bottom-right
-#
-# pos_x = (x + 1) / 2 * (cw - clip_w)
-# pos_y = (y + 1) / 2 * (ch - clip_h)
-
+# ============================================================================
+# Anchor resolver (screen coords, y↓)
+# ============================================================================
 
 def _resolve_anchor(anchor: str, canvas_size: tuple[int, int], clip_size: tuple[int, int]):
-    """Return (x, y) pixel position for anchor string like '(0, 0)' or 'center'."""
     cw, ch = canvas_size
     w, h = clip_size
     try:
-        # Try coordinate format: "(ax, ay)"
         parts = anchor.strip("() ").split(",")
         ax = float(parts[0].strip())
         ay = float(parts[1].strip())
-        px = int((ax + 1) / 2 * (cw - w))
-        py = int((ay + 1) / 2 * (ch - h))
-        return (px, py)
+        return (int((ax + 1) / 2 * (cw - w)), int((ay + 1) / 2 * (ch - h)))
     except (ValueError, IndexError):
         pass
-    # Fallback: named anchors (backward compat)
     named = {
         "center":       lambda: ((cw - w) // 2, (ch - h) // 2),
         "top":          lambda: ((cw - w) // 2, 0),
@@ -74,27 +93,11 @@ def _resolve_anchor(anchor: str, canvas_size: tuple[int, int], clip_size: tuple[
     return fn()
 
 
-def _trim_to_preview(clip, p_start: float, p_end: float):
-    """Trim and shift a clip to fit the preview window. Returns None if no overlap."""
-    c_start = clip.start
-    c_end = clip.start + clip.duration
-    overlap_start = max(c_start, p_start)
-    overlap_end = min(c_end, p_end)
-    if overlap_start >= overlap_end:
-        return None
-    trim_in = overlap_start - c_start
-    clip = clip.subclipped(trim_in, trim_in + (overlap_end - overlap_start))
-    clip = clip.with_start(overlap_start - p_start)
-    return clip
-
-
-# ---------------------------------------------------------------------------
+# ============================================================================
 # Progress bar
-# ---------------------------------------------------------------------------
+# ============================================================================
 
 class ProgressBar:
-    """Simple ASCII progress bar: [████████░░░░░░] 53%  step/total"""
-
     def __init__(self, total: int, width: int = 30, prefix: str = ""):
         self.total = total
         self.width = width
@@ -109,8 +112,7 @@ class ProgressBar:
         pct = self.current / self.total if self.total else 0
         filled = int(self.width * pct)
         bar = "█" * filled + "░" * (self.width - filled)
-        msg = f"\r{self.prefix}[{bar}] {pct:5.1%} {self.current}/{self.total}"
-        sys.stderr.write(msg)
+        sys.stderr.write(f"\r{self.prefix}[{bar}] {pct:5.1%} {self.current}/{self.total}")
         sys.stderr.flush()
 
     def finish(self):
@@ -118,23 +120,112 @@ class ProgressBar:
         sys.stderr.flush()
 
 
-# ---------------------------------------------------------------------------
-# Public API
-# ---------------------------------------------------------------------------
+# ============================================================================
+# Preview trimmer
+# ============================================================================
+
+def _trim_to_preview(clip, p_start: float, p_end: float):
+    c_start = clip.start
+    c_end = clip.start + clip.duration
+    overlap_start = max(c_start, p_start)
+    overlap_end = min(c_end, p_end)
+    if overlap_start >= overlap_end:
+        return None
+    trim_in = overlap_start - c_start
+    clip = clip.subclipped(trim_in, trim_in + (overlap_end - overlap_start))
+    clip = clip.with_start(overlap_start - p_start)
+    return clip
+
+
+# ============================================================================
+# Easing functions
+# ============================================================================
+
+def _apply_easing(t: float, curve: str) -> float:
+    """Map linear t ∈ [0,1] through an easing curve."""
+    if curve == "ease_in":
+        return 1 - math.cos(t * math.pi / 2)      # sine-in
+    elif curve == "ease_out":
+        return math.sin(t * math.pi / 2)            # sine-out
+    elif curve == "ease_in_out":
+        return (1 - math.cos(t * math.pi)) / 2      # sine-in-out
+    return t  # linear
+
+
+# ============================================================================
+# Global filter map (string → vfx class)
+# ============================================================================
+
+_FILTER_MAP: dict[str, Any] = {
+    "blackwhite": vfx.BlackAndWhite,
+    "invert":     vfx.InvertColors,
+    "mirror_x":   vfx.MirrorX,
+    "mirror_y":   vfx.MirrorY,
+    "painting":   vfx.Painting,
+}
+
+
+def _apply_filter(clip, filter_name: str):
+    fx_cls = _FILTER_MAP.get(filter_name)
+    if fx_cls is None:
+        print(f"[warn] unknown filter: {filter_name}")
+        return clip
+    return clip.with_effects([fx_cls()])
+
+
+# ============================================================================
+# Public render
+# ============================================================================
 
 def render(doc: KinetiXDocument, output_path: str = "output.mp4",
            preview_range: tuple[float, float] | None = None,
            no_subtitles: bool = False) -> None:
-    """Compile a KinetiXDocument to an mp4 file.
-
-    If preview_range=(start_s, end_s), only clips overlapping that window are
-    rendered — useful for quick debugging of a specific section.
-    """
     size = doc.output.size
     fps = doc.output.fps
     p_start, p_end = preview_range if preview_range else (0.0, float("inf"))
     is_preview = preview_range is not None
 
+    video_clips, audio_clips = _build_all_clips(doc, size, is_preview, p_start, p_end)
+
+    if not video_clips:
+        print("[error] no video/image clips to render")
+        return
+    video_clips.sort(key=lambda c: c.layer_order)
+
+    # subtitles
+    sub_clips = []
+    if doc.subtitle_path and not no_subtitles:
+        srt_path = Path(doc.subtitle_path)
+        if srt_path.exists():
+            sub_clips = _build_subtitle_clips(parse_srt(str(srt_path)), size)
+            print(f"[info] {len(sub_clips)} subtitles loaded")
+        else:
+            print(f"[warn] subtitle file not found: {srt_path}")
+
+    video_clips.extend(sub_clips)
+
+    if is_preview:
+        video_clips[:] = [_trim_to_preview(c, p_start, p_end) for c in video_clips]
+        audio_clips[:] = [_trim_to_preview(c, p_start, p_end) for c in audio_clips]
+        video_clips = [c for c in video_clips if c is not None]
+        audio_clips = [c for c in audio_clips if c is not None]
+
+    video_clips.sort(key=lambda c: c.layer_order)
+
+    label = f"[preview {p_start:.1f}s-{p_end:.1f}s]" if is_preview else ""
+    print(f"[compose] {len(video_clips)} video + {len(audio_clips)} audio clips {label}")
+
+    composite = CompositeVideoClip(video_clips, size=size)
+    if audio_clips:
+        composite = composite.with_audio(CompositeAudioClip(audio_clips))
+    composite = composite.with_duration(composite.duration)
+
+    print("[render] writing video...")
+    composite.write_videofile(output_path, fps=fps, codec="libx264", audio_codec="aac", logger="bar")
+    print(f"[done] → {output_path}")
+
+
+def _build_all_clips(doc: KinetiXDocument, size, is_preview=False, p_start=0.0, p_end=float("inf")):
     video_clips = []
     audio_clips = []
     total = len(doc.timeline)
@@ -146,13 +237,11 @@ def render(doc: KinetiXDocument, output_path: str = "output.mp4",
             continue
         pbar.update(i + 1)
 
-        # --- Preview filtering ---
         if is_preview:
             e_start = entry.start_time if isinstance(entry.start_time, (int, float)) else 0
-            e_dur = entry.duration or 5.0
-            e_end = e_start + e_dur
+            e_end = e_start + (entry.duration or 5.0)
             if e_end <= p_start or e_start >= p_end:
-                continue  # clip entirely outside preview window
+                continue
 
         if asset.type == AssetType.AUDIO:
             clip = _build_audio_clip(asset, entry)
@@ -168,51 +257,12 @@ def render(doc: KinetiXDocument, output_path: str = "output.mp4",
                 video_clips.append(clip)
 
     pbar.finish()
-
-    # --- Subtitles (loaded before preview trim so they shift correctly) ---
-    sub_clips = []
-    if doc.subtitle_path and not no_subtitles:
-        srt_path = Path(doc.subtitle_path)
-        if srt_path.exists():
-            sub_clips = _build_subtitle_clips(parse_srt(str(srt_path)), size)
-            print(f"[info] {len(sub_clips)} subtitles loaded")
-        else:
-            print(f"[warn] subtitle file not found: {srt_path}")
-
-    video_clips.extend(sub_clips)
-
-    if is_preview:
-        # Shift & trim ALL clips (including subtitles) to preview window
-        video_clips[:] = [_trim_to_preview(c, p_start, p_end) for c in video_clips]
-        audio_clips[:] = [_trim_to_preview(c, p_start, p_end) for c in audio_clips]
-        video_clips = [c for c in video_clips if c is not None]
-        audio_clips = [c for c in audio_clips if c is not None]
-
-    if not video_clips:
-        print("[error] no video/image clips to render")
-        return
-
-    video_clips.sort(key=lambda c: c.layer_order)
-
-    n_vid = len(video_clips)
-    n_aud = len(audio_clips)
-    label = f"[preview {p_start:.1f}s-{p_end:.1f}s]" if is_preview else ""
-    print(f"[compose] {n_vid} video + {n_aud} audio clips {label}")
-
-    composite = CompositeVideoClip(video_clips, size=size)
-    if audio_clips:
-        composite = composite.with_audio(CompositeAudioClip(audio_clips))
-    composite = composite.with_duration(composite.duration)
-
-    print("[render] writing video...")
-    composite.write_videofile(output_path, fps=fps, codec="libx264", audio_codec="aac",
-                              logger="bar")
-    print(f"[done] → {output_path}")
+    return video_clips, audio_clips
 
 
-# ---------------------------------------------------------------------------
+# ============================================================================
 # Clip builders
-# ---------------------------------------------------------------------------
+# ============================================================================
 
 def _build_text_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int, int]):
     dur = entry.duration or asset.duration or 5.0
@@ -223,12 +273,15 @@ def _build_text_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int,
         text_color=asset.text_color,
         font_name=asset.text_font,
         font_size=asset.text_font_size,
+        bg_opacity=asset.text_bg_opacity,
     )
     clip = ImageClip(frame).with_duration(dur)
     clip = clip.with_start(entry.start_time)
     for kf in entry.keyframes:
         clip = _apply_keyframes(clip, kf)
     clip = _apply_fade(clip, entry)
+    if entry.filter:
+        clip = _apply_filter(clip, entry.filter)
     clip.layer_order = entry.layer
     return clip
 
@@ -239,10 +292,9 @@ def _build_video_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int
         print(f"[warn] file not found: {path}, skipping")
         return None
 
-    # --- base clip ---
+    # base
     if asset.type == AssetType.VIDEO:
         base = VideoFileClip(str(path))
-        # Auto-scale video to cover canvas
         if base.size != list(canvas_size):
             cover_scale = max(canvas_size[0] / base.w, canvas_size[1] / base.h)
             base = base.resized(cover_scale)
@@ -251,35 +303,32 @@ def _build_video_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int
         frame = _load_image_cover(str(path), canvas_size)
         base = ImageClip(frame).with_duration(dur)
 
-    # --- speed ---
+    # speed
     if entry.speed is not None and entry.speed > 0 and entry.speed != 1.0:
         base = base.with_effects([vfx.MultiplySpeed(entry.speed)])
 
-    # --- crop ---
+    # crop
     if entry.crop is not None:
         x, y, w, h = entry.crop
         base = base.with_effects([vfx.Crop(x1=x, y1=y, x2=x + w, y2=y + h)])
 
-    # --- time trim (subclipped to trim_start..trim_end, then duration caps) ---
+    # trim
     if entry.trim_start is not None or entry.trim_end is not None:
         t0 = entry.trim_start or 0.0
         t1 = entry.trim_end or base.duration
-        t1 = min(t1, base.duration)
-        base = base.subclipped(t0, t1)
+        base = base.subclipped(t0, min(t1, base.duration))
     elif entry.duration is not None and asset.type == AssetType.VIDEO:
-        actual_dur = min(entry.duration, base.duration)
-        base = base.subclipped(0, actual_dur)
+        base = base.subclipped(0, min(entry.duration, base.duration))
     elif entry.duration is not None:
         base = base.with_duration(entry.duration)
 
-    # --- start time ---
     base = base.with_start(entry.start_time)
 
-    # --- keyframe animations (BEFORE anchor so scale affects clip size) ---
+    # keyframes (before anchor)
     for kf in entry.keyframes:
         base = _apply_keyframes(base, kf)
 
-    # --- position (anchor or explicit pos) ---
+    # position
     if entry.position is not None:
         base = base.with_position(entry.position)
     elif entry.anchor not in ("(0, 0)", "center"):
@@ -290,10 +339,14 @@ def _build_video_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int
         except Exception:
             pass
 
-    # --- fade / transition ---
+    # fade / transition
     base = _apply_fade(base, entry)
 
-    # --- mute ---
+    # global filter
+    if entry.filter:
+        base = _apply_filter(base, entry.filter)
+
+    # mute
     if entry.mute:
         base = base.without_audio()
 
@@ -308,24 +361,18 @@ def _build_audio_clip(asset: Asset, entry: TimelineEntry):
         return None
 
     clip = AudioFileClip(str(path))
-
-    # trim
     if entry.trim_start is not None or entry.trim_end is not None:
         t0 = entry.trim_start or 0.0
         t1 = entry.trim_end or clip.duration
         clip = clip.subclipped(t0, min(t1, clip.duration))
     elif entry.duration is not None:
         clip = clip.subclipped(0, min(entry.duration, clip.duration))
-
     clip = clip.with_start(entry.start_time)
 
     if entry.speed is not None and entry.speed > 0 and entry.speed != 1.0:
         clip = clip.with_effects([vfx.MultiplySpeed(entry.speed)])
-
     if entry.volume is not None:
-        factor = 10 ** (entry.volume / 20.0)
-        clip = clip.multiplied_by(factor)
-
+        clip = clip.multiplied_by(10 ** (entry.volume / 20.0))
     return clip
 
 
@@ -337,9 +384,8 @@ def _build_subtitle_clips(subs, canvas_size: tuple[int, int]):
         dur = sub.end - sub.start
         if dur <= 0:
             continue
-        text = sub.text.replace("\n", " ")
         tc = TextClip(
-            text=text,
+            text=sub.text.replace("\n", " "),
             font=font,
             font_size=42,
             color="white",
@@ -356,9 +402,9 @@ def _build_subtitle_clips(subs, canvas_size: tuple[int, int]):
     return clips
 
 
-# ---------------------------------------------------------------------------
+# ============================================================================
 # Fade / transition
-# ---------------------------------------------------------------------------
+# ============================================================================
 
 def _apply_fade(clip, entry: TimelineEntry):
     if entry.fadein and entry.fadein > 0:
@@ -370,9 +416,9 @@ def _apply_fade(clip, entry: TimelineEntry):
     return clip
 
 
-# ---------------------------------------------------------------------------
-# Keyframe interpolation
-# ---------------------------------------------------------------------------
+# ============================================================================
+# Keyframe interpolation (with easing)
+# ============================================================================
 
 def _apply_keyframes(clip, kf: KeyframeTrack):
     frames = kf.keyframes
@@ -380,53 +426,80 @@ def _apply_keyframes(clip, kf: KeyframeTrack):
         return clip
     prop = kf.property_name
     if prop == "scale":
-        return _apply_scale_keyframes(clip, frames)
+        return _apply_scale_keyframes(clip, frames, kf.curve)
     elif prop == "opacity":
-        return _apply_opacity_keyframes(clip, frames)
+        return _apply_opacity_keyframes(clip, frames, kf.curve)
     elif prop == "pos":
-        return _apply_pos_keyframes(clip, frames)
+        return _apply_pos_keyframes(clip, frames, kf.curve)
+    elif prop == "rotate":
+        return _apply_rotate_keyframes(clip, frames, kf.curve)
     print(f"[warn] unsupported keyframe property: {prop}")
     return clip
 
 
-def _lerp(t: float, frames: list[tuple[float, Any]]) -> float:
-    if t <= frames[0][0]:
-        return frames[0][1]
-    if t >= frames[-1][0]:
-        return frames[-1][1]
+def _lerp(t: float, frames: list[tuple[float, Any]], curve: str = "linear") -> float:
+    """Linear interpolation on sorted keyframes with optional easing."""
+    frames.sort(key=lambda p: p[0])
+    t0, v0 = frames[0]
+    tn, vn = frames[-1]
+    if t <= t0:
+        return v0
+    if t >= tn:
+        return vn
     for i in range(len(frames) - 1):
-        t0, v0 = frames[i]
-        t1, v1 = frames[i + 1]
-        if t0 <= t <= t1:
-            ratio = (t - t0) / (t1 - t0) if t1 != t0 else 0.0
-            return v0 + (v1 - v0) * ratio
-    return frames[-1][1]
+        t1, v1 = frames[i]
+        t2, v2 = frames[i + 1]
+        if t1 <= t <= t2:
+            span = t2 - t1
+            raw = (t - t1) / span if span > 0 else 0.0
+            val = _apply_easing(raw, curve)
+            return v1 + (v2 - v1) * val
+    return vn
 
 
-def _apply_scale_keyframes(clip, frames: list[tuple[float, Any]]):
+def _apply_scale_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
+    return clip.resized(lambda t: _lerp(t, frames, curve))
+
+
+def _apply_opacity_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
+    return clip.with_opacity(lambda t: _lerp(t, frames, curve))
+
+
+def _apply_pos_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
+    return clip.with_position(lambda t: _lerp_tuple(t, frames, curve))
+
+
+def _apply_rotate_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
+    """Rotation keyframe — PIL-based per-frame rotation."""
+    from PIL import Image as PILImage
+    def rotated_frame(t):
+        frame = clip.get_frame(t)
+        angle = _lerp(t, frames, curve)
+        img = PILImage.fromarray(frame)
+        rotated = img.rotate(angle, expand=False, resample=PILImage.BICUBIC, fillcolor=0)
+        return np.array(rotated)
+    new_clip = clip.with_updated_frame_function(rotated_frame)
+    new_clip.layer_order = getattr(clip, 'layer_order', 0)
+    return new_clip
+
+
+def _lerp_tuple(t: float, frames: list[tuple[float, tuple]], curve: str = "linear") -> tuple:
     frames.sort(key=lambda p: p[0])
-    return clip.resized(lambda t: _lerp(t, frames))
-
-
-def _apply_opacity_keyframes(clip, frames: list[tuple[float, Any]]):
-    frames.sort(key=lambda p: p[0])
-    return clip.with_opacity(lambda t: _lerp(t, frames))
-
-
-def _apply_pos_keyframes(clip, frames: list[tuple[float, Any]]):
-    frames.sort(key=lambda p: p[0])
-    return clip.with_position(lambda t: _lerp_tuple(t, frames))
-
-
-def _lerp_tuple(t: float, frames: list[tuple[float, tuple]]) -> tuple:
-    if t <= frames[0][0]:
-        return frames[0][1]
-    if t >= frames[-1][0]:
-        return frames[-1][1]
+    t0, v0 = frames[0]
+    tn, vn = frames[-1]
+    if t <= t0:
+        return v0
+    if t >= tn:
+        return vn
     for i in range(len(frames) - 1):
-        t0, v0 = frames[i]
-        t1, v1 = frames[i + 1]
-        if t0 <= t <= t1:
-            ratio = (t - t0) / (t1 - t0) if t1 != t0 else 0.0
-            return (v0[0] + (v1[0] - v0[0]) * ratio, v0[1] + (v1[1] - v0[1]) * ratio)
-    return frames[-1][1]
+        t1, v1 = frames[i]
+        t2, v2 = frames[i + 1]
+        if t1 <= t <= t2:
+            span = t2 - t1
+            raw = (t - t1) / span if span > 0 else 0.0
+            val = _apply_easing(raw, curve)
+            return (
+                v1[0] + (v2[0] - v1[0]) * val,
+                v1[1] + (v2[1] - v1[1]) * val,
+            )
+    return vn

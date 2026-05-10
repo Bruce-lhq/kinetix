@@ -1,4 +1,4 @@
-"""AST data structures for KinetiX."""
+"""AST data structures for KinetiX Pro."""
 
 from __future__ import annotations
 
@@ -14,35 +14,77 @@ class AssetType(Enum):
     TEXT = "text"
 
 
+class Easing(Enum):
+    LINEAR = "linear"
+    EASE_IN = "ease_in"
+    EASE_OUT = "ease_out"
+    EASE_IN_OUT = "ease_in_out"
+
+
+# ---------------------------------------------------------------------------
+# Assets (video / image / audio / text)
+# ---------------------------------------------------------------------------
+
+
 @dataclass
 class Asset:
     id: str
     path: str
     type: AssetType
     duration: float | None = None
+    tags: list[str] = field(default_factory=list)
 
-    # Text-specific fields
+    # Text-specific
     text_content: str | None = None
     text_bg: str = "#000000"
     text_color: str = "#FFFFFF"
     text_font: str = "default"
     text_font_size: int | None = None
+    text_bg_opacity: float = 0.0   # 0=transparent, 1=opaque bg box
+
+
+# ---------------------------------------------------------------------------
+# Style (macro definition)
+# ---------------------------------------------------------------------------
+
+
+@dataclass
+class Style:
+    """Predefined property block, referenced via style: name on timeline entries."""
+    name: str
+    fadein: float | None = None
+    fadeout: float | None = None
+    transition: str | None = None
+    transition_dur: float = 0.0
+    volume: float | None = None
+    mute: bool = False
+    layer: int | None = None
+    anchor: str | None = None
+    filter: str | None = None        # global filter e.g. "blackwhite", "sepia"
+    speed: float | None = None
+
+
+# ---------------------------------------------------------------------------
+# Keyframes
+# ---------------------------------------------------------------------------
 
 
 @dataclass
 class KeyframeTrack:
-    """A single property animated over time, e.g. scale: {0s: 0.5, 5s: 1.2}."""
+    property_name: str   # "scale", "opacity", "pos", "rotate"
+    keyframes: list[tuple[float, Any]]   # [(time_s, value), ...]
+    curve: str = "linear"   # "linear" | "ease_in" | "ease_out" | "ease_in_out"
 
-    property_name: str
-    keyframes: list[tuple[float, Any]]
+
+# ---------------------------------------------------------------------------
+# Timeline entry
+# ---------------------------------------------------------------------------
 
 
 @dataclass
 class TimelineEntry:
-    """A single clip placement on the timeline."""
-
     asset_id: str
-    start_time: float | str  # absolute seconds or 'prev.end'
+    start_time: float | str  # absolute s | 'prev.end' | 'v1.end - 2s' (expression)
     layer: int = 0
     duration: float | None = None
     position: tuple[int, int] | None = None
@@ -50,14 +92,22 @@ class TimelineEntry:
     transition_dur: float = 0.0
     fadein: float | None = None
     fadeout: float | None = None
-    volume: float | None = None  # in dB, e.g. -28
+    volume: float | None = None
     mute: bool = False
-    speed: float | None = None  # playback speed multiplier, e.g. 2.0 = 2x
-    anchor: str = "(0, 0)"   # (-1,-1)=top-left, (0,0)=center, (1,1)=bottom-right (screen coords)
-    crop: tuple[int, int, int, int] | None = None   # (x, y, w, h) pixel crop region
-    trim_start: float | None = None  # start playback at this time offset
-    trim_end: float | None = None    # end playback at this time offset
+    speed: float | None = None
+    anchor: str = "(0, 0)"
+    crop: tuple[int, int, int, int] | None = None
+    trim_start: float | None = None
+    trim_end: float | None = None
+    filter: str | None = None          # per-clip filter override
+    style_ref: str | None = None       # style name to apply
+    track_role: str = "auto"           # "voice" | "bgm" | "sfx" | "auto"  (for ducking)
     keyframes: list[KeyframeTrack] = field(default_factory=list)
+
+
+# ---------------------------------------------------------------------------
+# Output config
+# ---------------------------------------------------------------------------
 
 
 @dataclass
@@ -77,11 +127,15 @@ class OutputConfig:
         return mapping.get(self.resolution, (1920, 1080))
 
 
+# ---------------------------------------------------------------------------
+# Top-level document
+# ---------------------------------------------------------------------------
+
+
 @dataclass
 class KinetiXDocument:
-    """Top-level AST root."""
-
     assets: dict[str, Asset] = field(default_factory=dict)
     timeline: list[TimelineEntry] = field(default_factory=list)
+    styles: dict[str, Style] = field(default_factory=dict)
     output: OutputConfig = field(default_factory=OutputConfig)
     subtitle_path: str | None = None

@@ -1,0 +1,22 @@
+# KinetiX Pro Feature Demo
+
+# --- Style definition ---
+Define Style("intro"):
+  fadein: 1s
+  layer: 0
+  transition: "crossfade", dur: 0.5s
+
+# --- Assets (with tags) ---
+[v1a]: test_assets/video1.mp4 [blue, demo]
+[img1]: test_assets/logo.png [yellow, overlay]
+
+# --- Timeline with style reference and expression time ---
+[v1a]  @ 00:00 | layer: 0 | style: "intro" | mute: true | speed: 2
+[img1] @ v1a.end - 1s | duration: 3s | layer: 1 | anchor: (1, -1) | transition: "crossfade", dur: 0.5s
+
+# --- Keyframes with easing ---
+[img1]:
+  scale: { 0s: 0.3, 3s: 1.0, curve: "ease_in_out" }
+
+# --- Output ---
+Format: mp4, Res: 1080p, FPS: 30
