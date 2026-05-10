@@ -80,8 +80,14 @@ def _resolve_entry_time(entry: TimelineEntry, fallback: float) -> None:
         entry.start_time = float(entry.start_time)
 
 
-def compile_ktx(ktx_path: str, output_path: str | None = None) -> None:
-    """Main compilation pipeline: parse → resolve → render."""
+def compile_ktx(ktx_path: str, output_path: str | None = None,
+                preview_range: tuple[float, float] | None = None,
+                no_subtitles: bool = False) -> None:
+    """Main compilation pipeline: parse → resolve → render.
+
+    preview_range: (start_s, end_s) for quick-debug a section only.
+    no_subtitles: skip loading srt subtitles.
+    """
     source = Path(ktx_path).read_text(encoding="utf-8")
 
     # 1. Parse
@@ -95,8 +101,12 @@ def compile_ktx(ktx_path: str, output_path: str | None = None) -> None:
 
     # 4. Render
     if output_path is None:
-        output_path = str(Path(ktx_path).with_suffix(".mp4"))
-    render(doc, output_path)
+        base = str(Path(ktx_path).with_suffix(""))
+        if preview_range:
+            output_path = f"{base}_preview{preview_range[0]:.0f}-{preview_range[1]:.0f}.mp4"
+        else:
+            output_path = f"{base}.mp4"
+    render(doc, output_path, preview_range=preview_range, no_subtitles=no_subtitles)
 
 
 def _merge_keyframe_entries(doc: KinetiXDocument) -> None:

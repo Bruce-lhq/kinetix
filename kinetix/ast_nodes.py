@@ -52,6 +52,11 @@ class TimelineEntry:
     fadeout: float | None = None
     volume: float | None = None  # in dB, e.g. -28
     mute: bool = False
+    speed: float | None = None  # playback speed multiplier, e.g. 2.0 = 2x
+    anchor: str = "(0, 0)"   # (-1,-1)=top-left, (0,0)=center, (1,1)=bottom-right (screen coords)
+    crop: tuple[int, int, int, int] | None = None   # (x, y, w, h) pixel crop region
+    trim_start: float | None = None  # start playback at this time offset
+    trim_end: float | None = None    # end playback at this time offset
     keyframes: list[KeyframeTrack] = field(default_factory=list)
 
 
@@ -79,3 +84,4 @@ class KinetiXDocument:
     assets: dict[str, Asset] = field(default_factory=dict)
     timeline: list[TimelineEntry] = field(default_factory=list)
     output: OutputConfig = field(default_factory=OutputConfig)
+    subtitle_path: str | None = None

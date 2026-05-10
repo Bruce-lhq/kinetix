@@ -54,6 +54,9 @@ RE_KF_PAIR = re.compile(r'(\d+(?:\.\d+)?)s\s*:\s*([^,}\s]+)')
 # Output line: Format: mp4, Res: 1080p, FPS: 30
 RE_OUTPUT = re.compile(r'^Format:\s*(\w+),\s*Res:\s*(\S+),\s*FPS:\s*(\d+)$')
 
+# Subtitles line: Subtitles: path/to/file.srt
+RE_SUBTITLES = re.compile(r'^Subtitles:\s*(.+)$')
+
 # Time helpers
 RE_TIME_ABS = re.compile(r'^(\d{1,2}):(\d{2})$')
 RE_TIME_OFFSET = re.compile(r'^(\+?)(\d+(?:\.\d+)?)s$')
@@ -84,6 +87,13 @@ def parse(source: str) -> KinetiXDocument:
         m = RE_OUTPUT.match(stripped)
         if m:
             doc.output = OutputConfig(format=m.group(1), resolution=m.group(2), fps=int(m.group(3)))
+            i += 1
+            continue
+
+        # --- Subtitles ---
+        m = RE_SUBTITLES.match(stripped)
+        if m:
+            doc.subtitle_path = m.group(1).strip()
             i += 1
             continue
 
@@ -205,6 +215,11 @@ def _parse_timeline(m: re.Match, doc: KinetiXDocument) -> TimelineEntry:
     fadeout = _parse_dur(kv.get('fadeout'))
     volume = _parse_volume(kv.get('volume'))
     mute = kv.get('mute', '').strip().lower() in ('true', '1', 'yes')
+    speed = _parse_dur(kv.get('speed'))
+    anchor = kv.get('anchor', '(0, 0)').strip()
+    crop = _parse_crop(kv.get('crop'))
+    trim_start = _parse_dur(kv.get('trim_start'))
+    trim_end = _parse_dur(kv.get('trim_end'))
 
     # Inline syntax: transition: "crossfade", dur: 1s
     if transition:
@@ -225,6 +240,12 @@ def _parse_timeline(m: re.Match, doc: KinetiXDocument) -> TimelineEntry:
         fadein=fadein,
         fadeout=fadeout,
         volume=volume,
+        mute=mute,
+        speed=speed,
+        anchor=anchor,
+        crop=crop,
+        trim_start=trim_start,
+        trim_end=trim_end,
     )
 
 
@@ -245,6 +266,15 @@ def _parse_volume(val: str | None) -> float | None:
         return float(val)
     except ValueError:
         return None
+
+
+def _parse_crop(val: str | None) -> tuple[int, int, int, int] | None:
+    if val is None:
+        return None
+    m = re.match(r'\(\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*,\s*(\d+)\s*\)', val)
+    if m:
+        return (int(m.group(1)), int(m.group(2)), int(m.group(3)), int(m.group(4)))
+    return None
 
 
 def _parse_pos(val: str | None) -> tuple[int, int] | None:
