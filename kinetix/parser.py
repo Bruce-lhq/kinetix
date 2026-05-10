@@ -164,6 +164,7 @@ def parse(source: str) -> KinetiXDocument:
             i += 1
             continue
 
+        print(f"[warn] line {i + 1}: unrecognized syntax: {stripped}")
         i += 1
 
     return doc

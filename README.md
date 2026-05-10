@@ -21,6 +21,7 @@ kinetix/
   renderer.py    easing 插值 + rotate + filter + live preview
   text_card.py   PIL 渲染 (自动换行 / 行间距 / 半透明背景)
   subtitles.py   SRT 字幕解析
+  graphviz_timeline.py  多轨时间轴图 (--graph)
   cli.py         argparse CLI
 ```
 
