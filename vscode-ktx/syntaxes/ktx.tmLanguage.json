@@ -1,0 +1,226 @@
+{
+  "scopeName": "source.ktx",
+  "patterns": [
+    { "include": "#comments" },
+    { "include": "#section-headers" },
+    { "include": "#text-function" },
+    { "include": "#keyframe-block" },
+    { "include": "#timeline-entry" },
+    { "include": "#asset-declaration" },
+    { "include": "#strings" },
+    { "include": "#asset-refs" },
+    { "include": "#time-expressions" },
+    { "include": "#keyframe-body" },
+    { "include": "#constants" },
+    { "include": "#numbers" }
+  ],
+  "repository": {
+    "comments": {
+      "name": "comment.line.number-sign.ktx",
+      "match": "#.*$"
+    },
+    "section-headers": {
+      "patterns": [
+        {
+          "name": "keyword.control.ktx",
+          "match": "\\b(Define)\\b"
+        },
+        {
+          "name": "storage.type.ktx",
+          "match": "\\b(Style)\\b(?=\\s*\\()"
+        },
+        {
+          "name": "keyword.other.ktx",
+          "match": "^(Format|Subtitles)\\b"
+        },
+        {
+          "name": "support.function.ktx",
+          "match": "\\b(text)\\b(?=\\s*\\()"
+        }
+      ]
+    },
+    "text-function": {
+      "begin": "(text)\\s*(\\()",
+      "beginCaptures": {
+        "1": { "name": "support.function.ktx" },
+        "2": { "name": "punctuation.definition.group.ktx" }
+      },
+      "end": "\\)",
+      "endCaptures": {
+        "0": { "name": "punctuation.definition.group.ktx" }
+      },
+      "patterns": [
+        { "include": "#strings" },
+        { "include": "#property-keys" },
+        { "include": "#numbers" },
+        { "include": "#constants" }
+      ]
+    },
+    "asset-declaration": {
+      "begin": "^(\\[)(\\w+)(\\])\\s*(:)(?!\\s*$)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.bracket.square.ktx" },
+        "2": { "name": "entity.name.tag.ktx" },
+        "3": { "name": "punctuation.definition.bracket.square.ktx" },
+        "4": { "name": "keyword.operator.assignment.ktx" }
+      },
+      "end": "$",
+      "patterns": [
+        { "include": "#strings" },
+        { "include": "#property-keys" },
+        { "include": "#numbers" },
+        { "include": "#constants" },
+        {
+          "name": "string.unquoted.ktx",
+          "match": "[\\w./_-]+"
+        }
+      ]
+    },
+    "timeline-entry": {
+      "begin": "^(\\[)(\\w+)(\\])\\s*(@)",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.bracket.square.ktx" },
+        "2": { "name": "entity.name.tag.ktx" },
+        "3": { "name": "punctuation.definition.bracket.square.ktx" },
+        "4": { "name": "keyword.operator.at.ktx" }
+      },
+      "end": "$",
+      "patterns": [
+        { "include": "#operator-pipe" },
+        { "include": "#strings" },
+        { "include": "#time-expressions" },
+        { "include": "#property-keys" },
+        { "include": "#numbers" },
+        { "include": "#constants" }
+      ]
+    },
+    "keyframe-block": {
+      "begin": "^(\\[)(\\w+)(\\])\\s*(:)\\s*$",
+      "beginCaptures": {
+        "1": { "name": "punctuation.definition.bracket.square.ktx" },
+        "2": { "name": "entity.name.tag.ktx" },
+        "3": { "name": "punctuation.definition.bracket.square.ktx" },
+        "4": { "name": "keyword.operator.assignment.ktx" }
+      },
+      "end": "^(?=\\S)",
+      "patterns": [
+        { "include": "#keyframe-line" },
+        { "include": "#comments" }
+      ]
+    },
+    "keyframe-line": {
+      "begin": "^\\s+(\\w+)\\s*(:)\\s*(\\{)",
+      "beginCaptures": {
+        "1": { "name": "variable.other.property.ktx" },
+        "2": { "name": "keyword.operator.assignment.ktx" },
+        "3": { "name": "punctuation.definition.brace.curly.ktx" }
+      },
+      "end": "(\\})\\s*$",
+      "endCaptures": {
+        "1": { "name": "punctuation.definition.brace.curly.ktx" }
+      },
+      "patterns": [
+        { "include": "#keyframe-pair" },
+        { "include": "#keyframe-curve" },
+        { "include": "#time-value" },
+        { "include": "#numbers" },
+        { "include": "#constants" },
+        { "include": "#strings" }
+      ]
+    },
+    "keyframe-body": {
+      "match": "(\\{)([^}]*)(\\})",
+      "captures": {
+        "1": { "name": "punctuation.definition.brace.curly.ktx" },
+        "2": { "patterns": [
+          { "include": "#keyframe-pair" },
+          { "include": "#time-value" },
+          { "include": "#numbers" }
+        ]},
+        "3": { "name": "punctuation.definition.brace.curly.ktx" }
+      }
+    },
+    "keyframe-pair": {
+      "match": "(\\d+(?:\\.\\d+)?)(s)\\s*(:)\\s*(-?[\\w.\"',() ]+?)(?=\\s*,|\\s*\\})",
+      "captures": {
+        "1": { "name": "constant.numeric.ktx" },
+        "2": { "name": "storage.type.unit.ktx" },
+        "3": { "name": "keyword.operator.assignment.ktx" },
+        "4": { "name": "constant.numeric.ktx" }
+      }
+    },
+    "keyframe-curve": {
+      "match": "(curve)\\s*(:)\\s*\"(\\w+)\"",
+      "captures": {
+        "1": { "name": "variable.other.property.ktx" },
+        "2": { "name": "keyword.operator.assignment.ktx" },
+        "3": { "name": "constant.language.ktx" }
+      }
+    },
+    "asset-refs": {
+      "name": "entity.name.tag.ktx",
+      "match": "\\[(\\w+)\\]",
+      "captures": {
+        "1": { "name": "entity.name.tag.ktx" }
+      }
+    },
+    "time-expressions": {
+      "patterns": [
+        { "include": "#time-clock" },
+        { "include": "#time-seconds" },
+        { "include": "#time-ref-expr" },
+        { "include": "#time-prev-end" }
+      ]
+    },
+    "time-clock": {
+      "name": "constant.numeric.time.ktx",
+      "match": "\\b(\\d{1,2}):(\\d{2})\\b"
+    },
+    "time-seconds": {
+      "name": "constant.numeric.time.ktx",
+      "match": "\\b(\\d+(?:\\.\\d+)?)(s)\\b"
+    },
+    "time-value": {
+      "name": "constant.numeric.time.ktx",
+      "match": "(\\d+(?:\\.\\d+)?)(s)"
+    },
+    "time-ref-expr": {
+      "name": "support.function.time.ktx",
+      "match": "\\b(\\w+)\\.(start|end)\\b"
+    },
+    "time-prev-end": {
+      "name": "support.function.time.ktx",
+      "match": "\\bprev\\.end\\b"
+    },
+    "strings": {
+      "patterns": [
+        {
+          "name": "string.quoted.double.ktx",
+          "begin": "\"",
+          "end": "\""
+        },
+        {
+          "name": "string.quoted.single.ktx",
+          "begin": "'",
+          "end": "'"
+        }
+      ]
+    },
+    "operator-pipe": {
+      "name": "keyword.operator.pipe.ktx",
+      "match": "\\|"
+    },
+    "property-keys": {
+      "name": "variable.other.property.ktx",
+      "match": "\\b(font|size|bg|color|bg_opacity|stroke_width|stroke_color|layer|duration|pos|anchor|style|crop|trim_start|trim_end|filter|transition|transition_dur|fadein|fadeout|mute|speed|volume|role|opacity|scale|rotate|res|fps|dur)\\b(?=\\s*:)"
+    },
+    "constants": {
+      "name": "constant.language.ktx",
+      "match": "\\b(true|false|linear|ease_in|ease_out|ease_in_out|crossfade|mp4|480p|720p|1080p|4k|songti|heiti|center|top|bottom|left|right|voice|bgm|sfx|auto|blackwhite|invert|mirror_x|mirror_y|painting)\\b"
+    },
+    "numbers": {
+      "name": "constant.numeric.ktx",
+      "match": "\\b(\\d+(?:\\.\\d+)?)\\b"
+    }
+  }
+}

@@ -1,0 +1,28 @@
+{
+  "name": "ktx-syntax",
+  "displayName": "KinetiX (.ktx) Syntax",
+  "description": "Syntax highlighting for KinetiX declarative video timeline files (.ktx)",
+  "version": "0.1.0",
+  "publisher": "kinetix",
+  "engines": {
+    "vscode": "^1.75.0"
+  },
+  "categories": ["Programming Languages"],
+  "contributes": {
+    "languages": [
+      {
+        "id": "ktx",
+        "aliases": ["KinetiX", "ktx"],
+        "extensions": [".ktx"],
+        "configuration": "./language-configuration.json"
+      }
+    ],
+    "grammars": [
+      {
+        "language": "ktx",
+        "scopeName": "source.ktx",
+        "path": "./syntaxes/ktx.tmLanguage.json"
+      }
+    ]
+  }
+}
