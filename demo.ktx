@@ -1,0 +1,19 @@
+# KinetiX Demo — multi-track video with keyframes, transitions & audio
+
+# --- Asset declarations ---
+[v1]: test_assets/video1.mp4
+[v2]: test_assets/video2.mp4
+[img1]: test_assets/logo.png
+[a1]: test_assets/bgm.wav
+
+# --- Timeline ---
+[v1] @ 00:00 | layer: 0
+[v2] @ prev.end | layer: 0 | transition: "crossfade", dur: 1s
+[img1] @ 00:00 | duration: 5s | layer: 1 | pos: (50, 50)
+
+# --- Keyframes ---
+[img1]:
+  scale: { 0s: 0.5, 5s: 1.2 }
+
+# --- Output config ---
+Format: mp4, Res: 1080p, FPS: 30
