@@ -50,74 +50,127 @@ def render_text_card(
     line_spacing: float = 1.4,
     bg_opacity: float = 0.0,
     wrap_margin: int = 100,
+    natural_size: bool = False,
+    stroke_width: int = 0,
+    stroke_color: str = "#000000",
 ) -> np.ndarray:
     """Render text onto a background image.
 
     Args:
         content: Text with \\n for hard line breaks.
-        size: Canvas (W, H).
+        size: Canvas (W, H) — used as max bounds for natural_size mode.
         bg_color: Background color hex.
         text_color: Text color hex.
         font_name: 'songti' | 'heiti' | 'default'.
         font_size: Auto-sized if None.
-        line_spacing: Line height multiplier (1.0 = tight, 1.4 = comfortable).
-        bg_opacity: 0.0=transparent text bg, 1.0=solid box behind text.
+        line_spacing: Line height multiplier.
+        bg_opacity: 0.0=transparent bg, 1.0=solid box behind text.
         wrap_margin: Left/right margin for word-wrap.
+        natural_size: If True, render at text's natural size + padding
+                      (caller handles positioning).
+        stroke_width: Text outline width in px (0 = no stroke).
+        stroke_color: Stroke color hex.
     """
-    img = Image.new("RGBA" if bg_opacity > 0 else "RGB", size, bg_color)
-    draw = ImageDraw.Draw(img)
     font_path = _find_font(_FONT_CANDIDATES.get(font_name, _FONT_CANDIDATES["default"]))
+    canvas_w, canvas_h = size
 
-    # split hard breaks, then word-wrap each line
+    # --- measure text ---
     hard_lines = content.split("\n")
-    max_w = size[0] - 2 * wrap_margin
+    max_w = canvas_w - 2 * wrap_margin
+
+    # temporary draw for measurement
+    temp_img = Image.new("RGBA", size, (0, 0, 0, 0))
+    temp_draw = ImageDraw.Draw(temp_img)
 
     if font_size is None:
-        font_size = _autosize(draw, hard_lines, font_path, max_w, size[1] - 100, line_spacing)
+        font_size = _autosize(temp_draw, hard_lines, font_path, max_w, canvas_h - 100, line_spacing)
 
     font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default(font_size)
 
-    # word-wrap
+    # Account for stroke when measuring bounding boxes
+    sw = stroke_width if stroke_width > 0 else 0
+
     wrapped_lines: list[str] = []
     for line in hard_lines:
-        wrapped_lines.extend(_wrap_line(line, font, draw, max_w))
+        wrapped_lines.extend(_wrap_line(line, font, temp_draw, max_w - 2 * sw))
 
-    # measure line heights
-    line_heights = []
+    line_heights: list[int] = []
+    line_widths: list[int] = []
     for line in wrapped_lines:
-        bbox = draw.textbbox((0, 0), line, font=font)
+        bbox = temp_draw.textbbox((0, 0), line, font=font, stroke_width=sw, anchor='lt')
         line_heights.append(bbox[3] - bbox[1])
+        line_widths.append(bbox[2] - bbox[0])
 
     spacing_px = int(font_size * (line_spacing - 1.0))
     total_h = sum(line_heights) + spacing_px * (len(wrapped_lines) - 1)
+    max_line_w = max(line_widths) if line_widths else 0
+    block_pad = int(font_size * 0.3)
 
-    # semi-transparent background block
+    # --- create output image ---
+    if natural_size:
+        pad = 4
+        out_w = max_line_w + 2 * (block_pad if bg_opacity > 0 else pad)
+        out_h = total_h + 2 * (block_pad if bg_opacity > 0 else pad)
+        img = Image.new("RGBA", (out_w, out_h), (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
+
+        if bg_opacity > 0:
+            alpha = int(bg_opacity * 255)
+            draw.rounded_rectangle(
+                [2, 2, out_w - 2, out_h - 2], radius=12, fill=(0, 0, 0, alpha),
+            )
+
+        _draw_text_lines(draw, wrapped_lines, font, text_color,
+                         out_h, total_h, block_pad if bg_opacity > 0 else pad, out_w,
+                         line_heights, spacing_px,
+                         stroke_width=stroke_width, stroke_color=stroke_color)
+        return np.array(img)
+
+    # --- full canvas mode ---
     if bg_opacity > 0:
-        block_pad = int(font_size * 0.3)
-        block_top = (size[1] - total_h) // 2 - block_pad
-        block_bottom = block_top + total_h + 2 * block_pad
-        max_line_w = max((draw.textbbox((0, 0), l, font=font)[2] for l in wrapped_lines), default=0)
-        block_left = (size[0] - max_line_w) // 2 - block_pad
+        # Solid background color + semi-transparent block behind text
+        bg_rgba = (*_hex_to_rgb(bg_color), 255)
+        img = Image.new("RGBA", size, bg_rgba)
+        draw = ImageDraw.Draw(img)
+
+        block_top = (canvas_h - total_h) // 2 - block_pad
+        block_left = (canvas_w - max_line_w) // 2 - block_pad
         block_right = block_left + max_line_w + 2 * block_pad
+        block_bottom = block_top + total_h + 2 * block_pad
         alpha = int(bg_opacity * 255)
-        overlay = Image.new("RGBA", size, (0, 0, 0, 0))
-        overlay_draw = ImageDraw.Draw(overlay)
-        overlay_draw.rounded_rectangle(
+        draw.rounded_rectangle(
             [block_left, block_top, block_right, block_bottom],
             radius=12, fill=(0, 0, 0, alpha),
         )
-        img = Image.alpha_composite(img.convert("RGBA"), overlay)
+    else:
+        # Transparent background, text only
+        img = Image.new("RGBA", size, (0, 0, 0, 0))
+        draw = ImageDraw.Draw(img)
 
-    # draw text
-    y = (size[1] - total_h) // 2
+    _draw_text_lines(draw, wrapped_lines, font, text_color,
+                     canvas_h, total_h, 0, canvas_w,
+                     line_heights, spacing_px,
+                     stroke_width=stroke_width, stroke_color=stroke_color)
+    return np.array(img)
+
+
+def _hex_to_rgb(hex_color: str) -> tuple[int, int, int]:
+    hex_color = hex_color.lstrip("#")
+    return tuple(int(hex_color[i:i+2], 16) for i in (0, 2, 4))
+
+
+def _draw_text_lines(draw, wrapped_lines, font, text_color, canvas_h, total_h,
+                     pad_left, canvas_w, line_heights, spacing_px,
+                     stroke_width=0, stroke_color="#000000"):
+    """Draw wrapped text lines centered on the image."""
+    y = (canvas_h - total_h) // 2 if canvas_h > total_h else 0
     for i, line in enumerate(wrapped_lines):
-        bbox = draw.textbbox((0, 0), line, font=font)
+        bbox = draw.textbbox((0, 0), line, font=font, stroke_width=stroke_width, anchor='lt')
         w = bbox[2] - bbox[0]
-        x = (size[0] - w) // 2
-        draw.text((x, y), line, fill=text_color, font=font)
+        x = pad_left + (canvas_w - 2 * pad_left - w) // 2
+        draw.text((x, y), line, fill=text_color, font=font,
+                  stroke_width=stroke_width, stroke_fill=stroke_color, anchor='lt')
         y += line_heights[i] + spacing_px
-
-    return np.array(img.convert("RGB"))
 
 
 def _wrap_line(text: str, font: ImageFont.FreeTypeFont, draw: ImageDraw.Draw, max_w: int) -> list[str]:
@@ -129,7 +182,7 @@ def _wrap_line(text: str, font: ImageFont.FreeTypeFont, draw: ImageDraw.Draw, ma
     current = ""
     for word in words:
         test = f"{current} {word}".strip() if current else word
-        bbox = draw.textbbox((0, 0), test, font=font)
+        bbox = draw.textbbox((0, 0), test, font=font, anchor='lt')
         w = bbox[2] - bbox[0]
         if w <= max_w:
             current = test
@@ -137,7 +190,7 @@ def _wrap_line(text: str, font: ImageFont.FreeTypeFont, draw: ImageDraw.Draw, ma
             if current:
                 lines.append(current)
             # If a single word is too long, keep it (or could hyphenate)
-            bbox2 = draw.textbbox((0, 0), word, font=font)
+            bbox2 = draw.textbbox((0, 0), word, font=font, anchor='lt')
             if bbox2[2] - bbox2[0] > max_w:
                 word = _break_long_word(word, font, draw, max_w)
             current = word
@@ -152,7 +205,7 @@ def _break_long_word(word: str, font: ImageFont.FreeTypeFont, draw: ImageDraw.Dr
     result = ""
     for ch in word:
         test = result + ch
-        bbox = draw.textbbox((0, 0), test, font=font)
+        bbox = draw.textbbox((0, 0), test, font=font, anchor='lt')
         if bbox[2] - bbox[0] > max_w:
             return result  # truncated at max width
         result = test
@@ -177,7 +230,7 @@ def _autosize(draw: ImageDraw.Draw, hard_lines: list[str],
         total_h = 0
         fits = True
         for line in wrapped:
-            bbox = draw.textbbox((0, 0), line, font=font)
+            bbox = draw.textbbox((0, 0), line, font=font, anchor='lt')
             if bbox[2] - bbox[0] > max_w:
                 fits = False
                 break

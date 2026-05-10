@@ -34,6 +34,8 @@ class Asset:
     text_font: str = "default"
     text_font_size: int | None = None
     text_bg_opacity: float = 0.0   # 0=transparent, 1=opaque bg box
+    text_stroke_width: int = 0     # text outline stroke width
+    text_stroke_color: str = "#000000"
 
 
 # ---------------------------------------------------------------------------

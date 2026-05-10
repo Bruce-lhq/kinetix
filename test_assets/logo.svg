@@ -1,0 +1,39 @@
+<svg id="kinetix-svg" viewBox="0 0 630 200" xmlns="http://www.w3.org/2000/svg">
+            <defs>
+                <filter id="neonGlow" x="-50%" y="-50%" width="200%" height="200%">
+                    <feGaussianBlur stdDeviation="6" result="blur"></feGaussianBlur>
+                    <feComposite in="SourceGraphic" in2="blur" operator="over"></feComposite>
+                    <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#00D8FF" flood-opacity="0.7"></feDropShadow>
+                </filter>
+
+                <linearGradient id="chromeGrad" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
+                    <stop offset="0%" stop-color="#F8FAFC"></stop>
+                    <stop offset="50%" stop-color="#94A3B8"></stop>
+                    <stop offset="100%" stop-color="#475569"></stop>
+                </linearGradient>
+
+                <pattern id="grid" width="40" height="40" patternUnits="userSpaceOnUse">
+                    <path d="M 40 0 L 0 0 0 40" fill="none" stroke="white" stroke-opacity="0.04" stroke-width="1"></path>
+                </pattern>
+            </defs>
+
+            <rect width="100%" height="100%" fill="#0F172A" rx="12"></rect>
+            <rect width="100%" height="100%" fill="url(#grid)" rx="12"></rect>
+
+            <g transform="translate(30, 20)">
+                <path d="M 40 20 L 40 140" stroke="url(#chromeGrad)" stroke-width="14" stroke-linecap="round"></path>
+                <path d="M 40 80 L 100 20 L 200 140" stroke="url(#chromeGrad)" stroke-width="14" stroke-linejoin="round" stroke-linecap="round" fill="none"></path>
+                <path d="M 40 80 L 100 140 L 200 20" stroke="#00D8FF" stroke-width="14" stroke-linejoin="round" stroke-linecap="round" fill="none" filter="url(#neonGlow)"></path>
+
+                <g transform="translate(150, 80)">
+                    <polygon points="0,-8 2,-2 8,0 2,2 0,8 -2,2 -8,0 -2,-2" fill="#F8FAFC" filter="url(#neonGlow)"></polygon>
+                </g>
+            </g>
+
+            <text x="266" y="115" font-family="'Montserrat', sans-serif" font-weight="900" font-size="72" fill="#F8FAFC" letter-spacing="1">
+                Kineti<tspan fill="#00D8FF" filter="url(#neonGlow)">X</tspan>
+            </text>
+            <text x="266" y="145" font-family="'Montserrat', sans-serif" font-weight="600" font-size="13" fill="#94A3B8" letter-spacing="5.5">
+                DECLARATIVE VIDEO ENGINE
+            </text>
+        </svg>

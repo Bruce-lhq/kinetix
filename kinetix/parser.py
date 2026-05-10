@@ -31,14 +31,11 @@ RE_ASSET = re.compile(
     r'(?:\s+\[(?P<tags>.*?)\])?\s*$'
 )
 
-# [id]: text("content", font: kaiti, size: 48)
+# [id]: text("content", font: kaiti, size: 48, ...)
+# Two-step: capture content + raw params, then parse params order-agnostically.
 RE_TEXT_ASSET = re.compile(
-    r'^\[(?P<id>\w+)\]\s*:\s*text\(["\'](?P<content>.+?)["\']'
-    r'(?:\s*,\s*font:\s*(?P<font>\w+))?'
-    r'(?:\s*,\s*size:\s*(?P<size>\d+))?'
-    r'(?:\s*,\s*bg:\s*"(?P<bg>[^"]+)")?'
-    r'(?:\s*,\s*color:\s*"(?P<color>[^"]+)")?'
-    r'(?:\s*,\s*bg_opacity:\s*(?P<bg_opacity>[\d.]+))?'
+    r'^\[(?P<id>\w+)\]\s*:\s*text\(\s*["\'](?P<content>.+?)["\']'
+    r'\s*(?P<params>(?:,\s*[^,)]+\s*:\s*(?:"[^"]*"|[\w.]+))*)\s*'
     r'\)\s*$'
 )
 
@@ -66,7 +63,7 @@ RE_KF_LINE = re.compile(
 RE_KF_PAIR = re.compile(r'(\d+(?:\.\d+)?)s\s*:\s*([^,}\s]+)')
 RE_KF_CURVE = re.compile(r'curve\s*:\s*"(\w+)"')
 
-# Output: Format: mp4, Res: 1080p, FPS: 30
+RE_TEXT_PARAM = re.compile(r'(\w+)\s*:\s*("(?:[^"\\]|\\.)*"|[\w.]+)')
 RE_OUTPUT = re.compile(r'^Format:\s*(\w+),\s*Res:\s*(\S+),\s*FPS:\s*(\d+)$')
 
 # Subtitles: path
@@ -243,15 +240,25 @@ def _parse_asset(m: re.Match) -> Asset:
 def _parse_text_asset(m: re.Match) -> Asset:
     id_ = m.group('id')
     content = m.group('content').replace('\\n', '\n')
-    font = m.group('font') or 'default'
-    size = int(m.group('size')) if m.group('size') else None
-    bg = m.group('bg') or '#000000'
-    color_val = m.group('color') or '#FFFFFF'
-    bg_opacity = float(m.group('bg_opacity')) if m.group('bg_opacity') else 0.0
+    params_str = m.group('params') or ''
+
+    # Parse params in any order
+    params: dict[str, str] = {}
+    for pm in RE_TEXT_PARAM.finditer(params_str):
+        key = pm.group(1)
+        val = pm.group(2).strip('"\'')
+        params[key] = val
+
     return Asset(
         id=id_, path="__text__", type=AssetType.TEXT,
-        text_content=content, text_font=font, text_font_size=size,
-        text_bg=bg, text_color=color_val, text_bg_opacity=bg_opacity,
+        text_content=content,
+        text_font=params.get('font', 'default'),
+        text_font_size=int(params['size']) if 'size' in params else None,
+        text_bg=params.get('bg', '#000000'),
+        text_color=params.get('color', '#FFFFFF'),
+        text_bg_opacity=float(params.get('bg_opacity', '0.0')),
+        text_stroke_width=int(params.get('stroke_width', '0')),
+        text_stroke_color=params.get('stroke_color', '#000000'),
     )
 
 

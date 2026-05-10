@@ -56,13 +56,13 @@ def live_preview(doc: KinetiXDocument) -> None:
 # Image helpers
 # ============================================================================
 
-def _load_image_cover(path: str, canvas_size: tuple[int, int]) -> np.ndarray:
-    from PIL import Image as PILImage, ImageOps
+def _load_image(path: str) -> np.ndarray:
+    """Load image at original size, preserving alpha channel."""
+    from PIL import Image as PILImage
     img = PILImage.open(path)
     if img.mode == 'RGBA':
-        img = img.convert('RGB')
-    img = ImageOps.fit(img, canvas_size, method=PILImage.LANCZOS)
-    return np.array(img)
+        return np.array(img)
+    return np.array(img.convert('RGB'))
 
 
 def _get_asset_original_size(path, fallback: tuple[int, int]) -> tuple[int, int]:
@@ -341,11 +341,34 @@ def _build_text_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int,
         font_name=asset.text_font,
         font_size=asset.text_font_size,
         bg_opacity=asset.text_bg_opacity,
+        natural_size=True,
+        stroke_width=asset.text_stroke_width,
+        stroke_color=asset.text_stroke_color,
     )
     clip = ImageClip(frame).with_duration(dur)
     clip = clip.with_start(entry.start_time)
     for kf in entry.keyframes:
         clip = _apply_keyframes(clip, kf)
+
+    # Position / anchor (clip is rendered at natural size with transparent bg)
+    if entry.position is not None:
+        if isinstance(entry.position, str):
+            clip_h, clip_w = frame.shape[:2]
+            pos = _resolve_position(entry.position, canvas_size, (clip_w, clip_h))
+        else:
+            pos = entry.position
+        clip = clip.with_position(pos)
+    elif entry.anchor not in ("(0, 0)", "center"):
+        clip_h, clip_w = frame.shape[:2]
+        try:
+            pos = _resolve_anchor(entry.anchor, canvas_size, (clip_w, clip_h))
+            clip = clip.with_position(pos)
+        except Exception:
+            clip = clip.with_position(('center', 'center'))
+    else:
+        # Dynamic centering — handles keyframe-driven size changes per-frame
+        clip = clip.with_position(('center', 'center'))
+
     clip = _apply_fade(clip, entry)
     if entry.filter:
         clip = _apply_filter(clip, entry.filter)
@@ -367,8 +390,14 @@ def _build_video_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int
             base = base.resized(cover_scale)
     else:
         dur = entry.duration or asset.duration or 5.0
-        frame = _load_image_cover(str(path), canvas_size)
+        frame = _load_image(str(path))
         base = ImageClip(frame).with_duration(dur)
+        # Always contain image to canvas first, so scale keyframes
+        # operate relative to contained size (not raw pixel dimensions).
+        cw, ch = canvas_size
+        iw, ih = base.size
+        s = min(cw / iw, ch / ih)
+        base = base.resized(s)
 
     # speed
     if entry.speed is not None and entry.speed > 0 and entry.speed != 1.0:
@@ -382,7 +411,12 @@ def _build_video_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int
     # trim
     if entry.trim_start is not None or entry.trim_end is not None:
         t0 = entry.trim_start or 0.0
-        t1 = entry.trim_end or base.duration
+        if entry.trim_end is not None:
+            t1 = entry.trim_end
+        elif entry.duration is not None:
+            t1 = t0 + entry.duration
+        else:
+            t1 = base.duration
         base = base.subclipped(t0, min(t1, base.duration))
     elif entry.duration is not None and asset.type == AssetType.VIDEO:
         base = base.subclipped(0, min(entry.duration, base.duration))
@@ -403,7 +437,10 @@ def _build_video_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int
         else:
             pos = entry.position
         base = base.with_position(pos)
-    elif entry.anchor not in ("(0, 0)", "center"):
+    elif entry.anchor in ("(0, 0)", "center"):
+        # Dynamic centering — handles keyframe-driven size changes per-frame
+        base = base.with_position(('center', 'center'))
+    else:
         try:
             clip_w, clip_h = base.size
             pos = _resolve_anchor(entry.anchor, canvas_size, (clip_w, clip_h))
@@ -435,7 +472,12 @@ def _build_audio_clip(asset: Asset, entry: TimelineEntry):
     clip = AudioFileClip(str(path))
     if entry.trim_start is not None or entry.trim_end is not None:
         t0 = entry.trim_start or 0.0
-        t1 = entry.trim_end or clip.duration
+        if entry.trim_end is not None:
+            t1 = entry.trim_end
+        elif entry.duration is not None:
+            t1 = t0 + entry.duration
+        else:
+            t1 = clip.duration
         clip = clip.subclipped(t0, min(t1, clip.duration))
     elif entry.duration is not None:
         clip = clip.subclipped(0, min(entry.duration, clip.duration))
@@ -445,6 +487,13 @@ def _build_audio_clip(asset: Asset, entry: TimelineEntry):
         clip = clip.with_effects([vfx.MultiplySpeed(entry.speed)])
     if entry.volume is not None:
         clip = clip.with_volume_scaled(10 ** (entry.volume / 20.0))
+    # Audio-specific fades (vfx.FadeIn/Out don't work on audio clips)
+    if entry.fadein and entry.fadein > 0:
+        from moviepy import afx
+        clip = clip.with_effects([afx.AudioFadeIn(entry.fadein)])
+    if entry.fadeout and entry.fadeout > 0:
+        from moviepy import afx
+        clip = clip.with_effects([afx.AudioFadeOut(entry.fadeout)])
     return clip
 
 
@@ -535,7 +584,11 @@ def _lerp(t: float, frames: list[tuple[float, Any]], curve: str = "linear") -> f
 
 
 def _apply_scale_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
-    return clip.resized(lambda t: _lerp(t, frames, curve))
+    w, h = clip.size
+    def get_size(t):
+        scale = _lerp(t, frames, curve)
+        return (max(int(w * scale), 1), max(int(h * scale), 1))
+    return clip.resized(get_size)
 
 
 def _apply_opacity_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
@@ -553,17 +606,10 @@ def _apply_pos_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
 
 
 def _apply_rotate_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
-    """Rotation keyframe — PIL-based per-frame rotation."""
-    from PIL import Image as PILImage
-    def rotated_frame(t):
-        frame = clip.get_frame(t)
-        angle = _lerp(t, frames, curve)
-        img = PILImage.fromarray(frame)
-        rotated = img.rotate(angle, expand=False, resample=PILImage.BICUBIC, fillcolor=0)
-        return np.array(rotated)
-    new_clip = clip.with_updated_frame_function(rotated_frame)
-    new_clip.layer_order = getattr(clip, 'layer_order', 0)
-    return new_clip
+    """Rotation keyframe using moviepy's built-in Rotate effect (preserves alpha)."""
+    clip = clip.with_effects([vfx.Rotate(lambda t: _lerp(t, frames, curve), expand=False)])
+    clip.layer_order = getattr(clip, 'layer_order', 0)
+    return clip
 
 
 def _lerp_tuple(t: float, frames: list[tuple[float, tuple]], curve: str = "linear") -> tuple:

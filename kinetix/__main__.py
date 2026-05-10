@@ -1,5 +1,5 @@
 """Allow running as `python -m kinetix demo.ktx`."""
 
-from .main import main
+from .cli import main
 
 main()

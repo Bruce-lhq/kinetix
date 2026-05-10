@@ -15,8 +15,7 @@ git clone git@github.com:Bruce-lhq/kinetix.git
 cd kinetix
 pip install -e .
 kinetix demo.ktx                # compile to demo.mp4
-kinetix demo.ktx --graph        # generate timeline topology PNG
-kinetix demo.ktx --live         # live preview via ffplay
+open demo.mp4                   # play the output video
 ```
 
 ## CLI
@@ -91,11 +90,13 @@ Style properties: `fadein` `fadeout` `transition` `volume` `mute` `layer` `ancho
 | `trim_end` | `8s` | End time trim |
 | `filter` | `"blackwhite"` | Global filter |
 | `transition` | `"crossfade"` | Entrance transition |
-| `fadein` / `fadeout` | `1s` | Fade in/out |
+| `fadein` / `fadeout` | `1s` | Fade in/out (video + audio) |
 | `mute` | `true` | Mute video track |
 | `speed` | `2` | Playback speed (affects timeline) |
 | `volume` | `-28` | Volume in dB |
 | `role` | `voice` / `bgm` / `sfx` | Audio role (for ducking) |
+
+> `trim_start` + `duration` can be combined without `trim_end`: the clip will span `[trim_start, trim_start + duration]`.
 
 ### Position Units (CSS-like)
 
@@ -153,8 +154,10 @@ Easing curves: `linear` (default) | `ease_in` | `ease_out` | `ease_in_out`
 ### Text Cards
 
 ```yaml
-[t]: text("Content", font: songti, size: 64, bg_opacity: 0.3, color: "#FFFFFF")
+[t]: text("Content", font: songti, size: 64, bg_opacity: 0.3, color: "#FFFFFF", stroke_width: 2, stroke_color: "#00000060")
 ```
+
+Parameters can appear in any order. Defaults:
 
 | Parameter | Default | Description |
 |-----------|---------|-------------|
@@ -163,8 +166,10 @@ Easing curves: `linear` (default) | `ease_in` | `ease_out` | `ease_in_out`
 | `bg_opacity` | `0.0` | 0=transparent, 1=solid background |
 | `color` | `#FFFFFF` | Text color |
 | `bg` | `#000000` | Background color |
+| `stroke_width` | `0` | Text outline width in px |
+| `stroke_color` | `#000000` | Stroke color (supports alpha: `#00000060`) |
 
-Auto word-wrap with `\n` for hard line breaks.
+Auto word-wrap with `\n` for hard line breaks. Text clips render at natural size (transparent RGBA), centered on canvas by default. Use `opacity` keyframes for true transparent fade-in/out.
 
 ### Subtitles
 
@@ -184,26 +189,45 @@ Res options: `480p` `720p` `1080p` `4k`
 
 ## Complete Example
 
-This is the [`demo.ktx`](demo.ktx) included in the repo — run it with `kinetix demo.ktx`:
+See the full [`demo.ktx`](demo.ktx) in the repo — a multi-scene promotional clip with text overlays, easing keyframes, and live preview support. Run it with:
+
+```bash
+kinetix demo.ktx              # compile to demo.mp4
+kinetix demo.ktx --live       # real-time preview via ffplay
+kinetix demo.ktx --graph      # generate timeline topology PNG
+```
+
+Minimal example showing all core features:
 
 ```yaml
-Define Style("intro"):
-  fadein: 1s
+Define Style("cinematic"):
   layer: 0
-  transition: "crossfade", dur: 0.5s
+  transition: "crossfade", dur: 2.4s
 
-[v1]: test_assets/video1.mp4 [hero]
-[v2]: test_assets/video2.mp4
-[img1]: test_assets/logo.png [overlay]
-[a1]: test_assets/bgm.wav
+[v1]: test_assets/v_chaos.mp4
+[v2]: test_assets/v_order.mp4
+[logo]: test_assets/logo.png
+[bgm]: test_assets/bgm_epic.mp3
+[t1]: text("告别鼠标拖拽，纯代码剪大片", font: songti, size: 64,
+           stroke_width: 2, stroke_color: "#00000060")
 
-[v1]  @ 00:00 | layer: 0 | style: "intro" | mute: true | speed: 2
-[v2]  @ prev.end | layer: 0 | transition: "crossfade", dur: 1s
-[img1] @ v1.end - 1s | duration: 3s | layer: 1 | anchor: (1, -1) | filter: "blackwhite"
-[a1]  @ 00:00 | volume: -20 | role: bgm
+[bgm] @ 00:00 | volume: -10 | trim_start: 24s | duration: 16s | fadein: 1s | fadeout: 3s
+[v1]  @ 00:00 | style: "cinematic" | mute: true | duration: 7.5s
+[t1]  @ 1s    | duration: 3s
+[v2]  @ v1.end - 2.4s | style: "cinematic" | mute: true | duration: 7.5s
+[logo] @ v2.end - 2.5s | layer: 1 | duration: 5s
 
-[img1]:
-  scale: { 0s: 0.3, 3s: 1.0, curve: "ease_in_out" }
+[v1]:
+  scale: { 0s: 1.0, 7.5s: 1.12, curve: "ease_in" }
+
+[t1]:
+  scale: { 0s: 0.85, 3s: 1.0, curve: "ease_out" }
+  opacity: { 0s: 0.0, 0.6s: 1.0, 2.4s: 1.0, 3s: 0.0, curve: "ease_in_out" }
+
+[logo]:
+  scale: { 0s: 0.22, 1.8s: 0.35, curve: "ease_out" }
+  rotate: { 0s: -18, 1.8s: 0, curve: "ease_out" }
+  opacity: { 0s: 0.0, 1.0s: 1.0, curve: "ease_out" }
 
 Format: mp4, Res: 1080p, FPS: 30
 ```
