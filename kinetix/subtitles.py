@@ -16,7 +16,8 @@ class Subtitle:
 
 def parse_srt(path: str) -> list[Subtitle]:
     """Parse an .srt file into a list of Subtitle objects."""
-    content = open(path, encoding="utf-8").read()
+    with open(path, encoding="utf-8") as f:
+        content = f.read()
     blocks = re.split(r"\n\s*\n", content.strip())
     subs = []
     for block in blocks:

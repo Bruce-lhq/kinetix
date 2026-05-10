@@ -1,4 +1,4 @@
-"""Parser for .ktx files — KinetiX Pro.
+"""Parser for .ktx files — KinetiX.
 
 Grammar:
   [id]: path (dur: Ns)                                  -- asset
@@ -206,12 +206,12 @@ def _apply_style_prop(style: Style, key: str, val: str):
             style.transition_dur = float(dur_m.group(1))
             trans = trans[:dur_m.start()].strip().strip('"\'')
         style.transition = trans
-    elif key == 'volume':       style.volume = _parse_dur(val)
+    elif key == 'volume':       style.volume = _parse_volume(val)
     elif key == 'mute':         style.mute = val.strip().lower() in ('true', '1', 'yes')
     elif key == 'layer':        style.layer = int(val)
     elif key == 'anchor':       style.anchor = val.strip('"\'')
     elif key == 'filter':       style.filter = val.strip('"\'')
-    elif key == 'speed':        style.speed = _parse_dur(val)
+    elif key == 'speed':        style.speed = _parse_volume(val)
 
 
 # ---------------------------------------------------------------------------
@@ -285,7 +285,7 @@ def _parse_time(raw: str) -> float | str:
 
 def _parse_timeline(m: re.Match, doc: KinetiXDocument) -> TimelineEntry:
     asset_id = m.group('id')
-    raw_time = str(_parse_time(m.group('time')))
+    raw_time = _parse_time(m.group('time'))
     props_str = m.group('props')
 
     kv: dict[str, str] = {}
@@ -305,7 +305,7 @@ def _parse_timeline(m: re.Match, doc: KinetiXDocument) -> TimelineEntry:
     fadeout = _parse_dur(kv.get('fadeout'))
     volume = _parse_volume(kv.get('volume'))
     mute = kv.get('mute', '').strip().lower() in ('true', '1', 'yes')
-    speed = _parse_dur(kv.get('speed'))
+    speed = _parse_volume(kv.get('speed'))
     anchor = kv.get('anchor', '(0, 0)').strip()
     crop = _parse_crop(kv.get('crop'))
     trim_start = _parse_dur(kv.get('trim_start'))

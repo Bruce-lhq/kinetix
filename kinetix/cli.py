@@ -3,10 +3,7 @@
 
 import argparse
 import re
-import sys
 from pathlib import Path
-
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 from kinetix.main import compile_ktx, graph_mode, live_mode
 
@@ -28,7 +25,7 @@ def _parse_range(raw: str) -> tuple[float, float]:
 def main():
     parser = argparse.ArgumentParser(
         prog="kinetix",
-        description="KinetiX Pro — declarative video compilation engine (.ktx → .mp4)",
+        description="KinetiX — declarative video compilation engine (.ktx → .mp4)",
     )
     parser.add_argument("input", help="path to .ktx file")
     parser.add_argument("output", nargs="?", default=None,

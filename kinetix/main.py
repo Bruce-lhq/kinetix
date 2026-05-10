@@ -1,13 +1,12 @@
-"""KinetiX CLI entry point — resolves relative times, expressions, and compiles .ktx → .mp4."""
+"""KinetiX compilation pipeline — resolves times, expressions, and compiles .ktx → .mp4."""
 
 from __future__ import annotations
 
 import re
-import sys
 from pathlib import Path
 
 from .ast_nodes import AssetType, KinetiXDocument, Style, TimelineEntry
-from .graphviz_timeline import generate_timeline_graph
+from .timeline_graph import generate_timeline_graph
 from .parser import parse, RE_EXPR
 from .renderer import live_preview, render
 
@@ -174,16 +173,21 @@ def _compute_audio_ducking(doc: KinetiXDocument) -> None:
 # Compile
 # ---------------------------------------------------------------------------
 
+def _prepare(ktx_path: str) -> KinetiXDocument:
+    """Shared pipeline: parse → resolve paths → apply styles → resolve timeline → merge keyframes."""
+    source = Path(ktx_path).read_text(encoding="utf-8")
+    doc = parse(source)
+    _resolve_asset_paths(doc, Path(ktx_path).resolve().parent)
+    _apply_styles(doc)
+    resolve_timeline(doc)
+    _merge_keyframe_entries(doc)
+    return doc
+
+
 def compile_ktx(ktx_path: str, output_path: str | None = None,
                 preview_range: tuple[float, float] | None = None,
                 no_subtitles: bool = False) -> None:
-    source = Path(ktx_path).read_text(encoding="utf-8")
-
-    doc = parse(source)
-    _resolve_asset_paths(doc, Path(ktx_path).resolve().parent)
-    _apply_styles(doc)          # merge style blocks into entries
-    resolve_timeline(doc)       # resolve prev.end, v1.end-1s etc.
-    _merge_keyframe_entries(doc)
+    doc = _prepare(ktx_path)
     _compute_audio_ducking(doc)
 
     if output_path is None:
@@ -197,23 +201,13 @@ def compile_ktx(ktx_path: str, output_path: str | None = None,
 
 def live_mode(ktx_path: str, no_subtitles: bool = False) -> None:
     """Parse, resolve, and stream to ffplay without encoding to file."""
-    source = Path(ktx_path).read_text(encoding="utf-8")
-    doc = parse(source)
-    _resolve_asset_paths(doc, Path(ktx_path).resolve().parent)
-    _apply_styles(doc)
-    resolve_timeline(doc)
-    _merge_keyframe_entries(doc)
+    doc = _prepare(ktx_path)
     live_preview(doc)
 
 
 def graph_mode(ktx_path: str, output_path: str | None = None) -> str:
     """Parse, resolve, and generate a timeline topology PNG."""
-    source = Path(ktx_path).read_text(encoding="utf-8")
-    doc = parse(source)
-    _resolve_asset_paths(doc, Path(ktx_path).resolve().parent)
-    _apply_styles(doc)
-    resolve_timeline(doc)
-    _merge_keyframe_entries(doc)
+    doc = _prepare(ktx_path)
     if output_path is None:
         output_path = str(Path(ktx_path).with_suffix("")) + "_timeline"
     else:
@@ -258,26 +252,8 @@ def _probe_duration(path: str) -> float | None:
         if not p.exists():
             return None
         ext = p.suffix.lower()
-        clip = AudioFileClip(str(p)) if ext in ('.mp3', '.wav', '.aac', '.flac', '.m4a') else VideoFileClip(str(p))
-        dur = clip.duration
-        clip.close()
-        return dur
+        clip_cls = AudioFileClip if ext in ('.mp3', '.wav', '.aac', '.flac', '.m4a') else VideoFileClip
+        with clip_cls(str(p)) as clip:
+            return clip.duration
     except Exception:
         return None
-
-
-# ---------------------------------------------------------------------------
-# CLI
-# ---------------------------------------------------------------------------
-
-def main() -> None:
-    if len(sys.argv) < 2:
-        print("Usage: python -m kinetix <file.ktx> [output.mp4]")
-        sys.exit(1)
-    ktx_path = sys.argv[1]
-    output = sys.argv[2] if len(sys.argv) > 2 else None
-    compile_ktx(ktx_path, output)
-
-
-if __name__ == "__main__":
-    main()

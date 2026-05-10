@@ -1,4 +1,4 @@
-"""AST data structures for KinetiX Pro."""
+"""AST data structures for KinetiX."""
 
 from __future__ import annotations
 
@@ -12,13 +12,6 @@ class AssetType(Enum):
     IMAGE = "image"
     AUDIO = "audio"
     TEXT = "text"
-
-
-class Easing(Enum):
-    LINEAR = "linear"
-    EASE_IN = "ease_in"
-    EASE_OUT = "ease_out"
-    EASE_IN_OUT = "ease_in_out"
 
 
 # ---------------------------------------------------------------------------

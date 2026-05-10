@@ -41,10 +41,9 @@ def generate_timeline_graph(doc: KinetiXDocument, output_path: str = "timeline")
     span = max(t1 - t0, 1.0)
 
     # ---- Row layout ----
-    # video: one row per layer (higher = foreground)
+    # group by type; within each type, primary sort by layer, then auto-split overlapping clips
     video_layers: dict[int, list] = {}
-    text_clips = []
-    audio_clips = []
+    text_clips, audio_clips = [], []
     for e in entries:
         if e[4] == AssetType.AUDIO:
             audio_clips.append(e)
@@ -53,14 +52,16 @@ def generate_timeline_graph(doc: KinetiXDocument, output_path: str = "timeline")
         else:
             video_layers.setdefault(e[3], []).append(e)
 
-    # Build rows bottom-up: Audio → Text → Video (bottom → top)
+    # Build rows bottom-up: Audio → Text → Video (higher layer = top)
     rows: list[tuple[str, str, list]] = []
-    if audio_clips:
-        rows.append(("audio", "", audio_clips))
-    if text_clips:
-        rows.append(("text", "", text_clips))
-    for ly in sorted(video_layers, reverse=True):
-        rows.append(("video", f"L{ly}", video_layers[ly]))
+    for sub in _split_overlapping(audio_clips):
+        rows.append(("audio", "", sub))
+    for sub in _split_overlapping(text_clips):
+        rows.append(("text", "", sub))
+    for ly in sorted(video_layers):
+        label = f"L{ly}" if len(video_layers) > 1 else ""
+        for sub in _split_overlapping(video_layers[ly]):
+            rows.append(("video", label, sub))
 
     n_rows = len(rows)
     row_h = 1.2
@@ -80,9 +81,9 @@ def generate_timeline_graph(doc: KinetiXDocument, output_path: str = "timeline")
     for i, (track, flabel, clips) in enumerate(rows):
         y = i * row_h
 
-        # track separator
+        # track separator (midpoint between rows)
         if track != last_track and i > 0:
-            ax.axhline(y=y, color="#444466", linewidth=2.5, linestyle="-")
+            ax.axhline(y=(i - 0.5) * row_h, color="#444466", linewidth=2.5, linestyle="-")
         last_track = track
 
         # background
@@ -123,15 +124,14 @@ def generate_timeline_graph(doc: KinetiXDocument, output_path: str = "timeline")
     ax.spines["bottom"].set_color("#444444")
     ax.tick_params(colors="#888888", labelsize=9)
     ax.set_yticks([])
-    ax.xaxis.grid(True, color="#222233", linewidth=0.5, alpha=0.5)
-    ax.set_axisbelow(True)
 
-    # time ruler
+    # time ruler — use explicit ticks so grid and labels align
     interval = _tick(span)
-    for tv in _tick_list(t0, t1, interval):
-        ax.axvline(x=tv, color="#333344", linewidth=0.4, linestyle="--", alpha=0.5)
-        ax.text(tv, n_rows * row_h + 0.1, _fmt(tv),
-                ha="center", fontsize=8, color="#666666")
+    ticks = _tick_list(t0, t1, interval)
+    ax.set_xticks(ticks)
+    ax.set_xticklabels([_fmt(tv) for tv in ticks])
+    ax.xaxis.grid(True, color="#333344", linewidth=0.4, linestyle="--", alpha=0.5)
+    ax.set_axisbelow(True)
 
     # ---- Legend ----
     seen = set()
@@ -155,6 +155,25 @@ def generate_timeline_graph(doc: KinetiXDocument, output_path: str = "timeline")
                 facecolor=fig.get_facecolor())
     plt.close(fig)
     return output_path + ".png"
+
+
+def _split_overlapping(clips):
+    """Greedy split: put overlapping clips onto separate sub-tracks."""
+    if not clips:
+        return []
+    # sort by start time
+    sorted_clips = sorted(clips, key=lambda c: c[1])
+    tracks = []  # each track is list of clips, guaranteed no overlap within a track
+    for clip in sorted_clips:
+        placed = False
+        for track in tracks:
+            if clip[1] >= track[-1][2]:  # starts after last clip ends
+                track.append(clip)
+                placed = True
+                break
+        if not placed:
+            tracks.append([clip])
+    return tracks
 
 
 def _tick(span):
