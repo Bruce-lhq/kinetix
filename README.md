@@ -1,45 +1,50 @@
-# KinetiX (K-TeX) Pro
+# KinetiX
 
-声明式视频编译引擎 — 用纯文本 `.ktx` 文件描述视频，编译输出 `.mp4`。
+声明式视频编译引擎 — 用纯文本 `.ktx` 文件描述多轨视频，编译输出 `.mp4`。
+A declarative video composition engine — write timelines in `.ktx`, compile to `.mp4`.
+
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+
+## Quick Start
+
+**Prerequisites:** Python ≥ 3.10. [ffmpeg](https://ffmpeg.org/) (optional, for `--live` preview only).
 
 ```bash
+git clone git@github.com:Bruce-lhq/kinetix.git
+cd kinetix
 pip install -e .
-kinetix demo.ktx                     # 全量编译
-kinetix demo.ktx output.mp4          # 指定输出路径
-kinetix demo.ktx --live              # 实时预览窗口（无重编码）
-kinetix demo.ktx --preview 01:00-02:00  # 快速预览片段
-kinetix demo.ktx --no-subtitles      # 跳过字幕
+kinetix demo.ktx                # compile to demo.mp4
+kinetix demo.ktx --graph        # generate timeline topology PNG
+kinetix demo.ktx --live         # live preview via ffplay
 ```
 
-## 架构
+## CLI
 
-```
-kinetix/
-  ast_nodes.py   数据结构 (Asset, Style, KeyframeTrack, Easing, …)
-  parser.py      .ktx → AST  (正则 + Define Style 块解析)
-  main.py        style 合并 + 表达式时间轴求解 + 音频避让
-  renderer.py    easing 插值 + rotate + filter + live preview
-  text_card.py   PIL 渲染 (自动换行 / 行间距 / 半透明背景)
-  subtitles.py   SRT 字幕解析
-  graphviz_timeline.py  多轨时间轴图 (--graph)
-  cli.py         argparse CLI
+```bash
+kinetix <input.ktx> [output.mp4] [options]
+
+Options:
+  --live                Live preview via ffplay (no encoding)
+  --preview START-END   Render a time slice, e.g. --preview 00:30-01:00
+  --graph               Generate timeline topology PNG (no video render)
+  --no-subtitles        Skip SRT subtitle rendering
 ```
 
-管线: `parse(.ktx)` → `apply_styles` → `resolve_timeline` → `render(.mp4)` 或 `live_preview(ffplay)`
+## .ktx Syntax
 
-## .ktx 格式速查
-
-### 资产声明
+### Asset Declarations
 
 ```yaml
-[v1]:  clips/video.mp4 [tag1, tag2]     # 视频，带标签
-[img]: clips/photo.jpg [overlay]        # 图片
-[bgm]: clips/music.mp3                  # 音频
-[t1]:  text("第一行\n第二行", font: songti, bg_opacity: 0.5)
-#       文字卡片：支持 \n 换行，bg_opacity 控制背景半透明块
+[v1]:  clips/video.mp4 [tag1, tag2]     # video with tags
+[img]: clips/photo.jpg [overlay]        # image
+[bgm]: clips/music.mp3                  # audio
+[t1]:  text("Line 1\nLine 2", font: songti, bg_opacity: 0.5)
 ```
 
-### Style 宏定义
+Supported formats: `.mp4` `.mov` `.avi` `.mkv` | `.jpg` `.jpeg` `.png` `.bmp` `.gif` | `.mp3` `.wav` `.aac` `.flac` `.m4a`
+
+### Style Macros
 
 ```yaml
 Define Style("intro"):
@@ -48,187 +53,167 @@ Define Style("intro"):
   transition: "crossfade", dur: 0.5s
   filter: "blackwhite"
 
-# 在时间线条目中引用
 [v1] @ 00:00 | style: "intro" | mute: true
 ```
 
-Style 支持属性: `fadein`, `fadeout`, `transition`, `volume`, `mute`, `layer`, `anchor`, `filter`, `speed`。条目显式值覆盖 Style 预设值。
+Style properties: `fadein` `fadeout` `transition` `volume` `mute` `layer` `anchor` `filter` `speed`. Entry values override style defaults.
 
-### 时间线
+### Timeline
 
 ```yaml
-# 表达式时间 — 锚定到任意命名片段
+# Expression time — anchor to any named clip
 [v2] @ v1.end - 1s | layer: 0
 [a1] @ v1.start + 2s | layer: 0
 
-# prev.end 仍然可用（音频/视频独立链式计算）
+# prev.end chains (audio/video tracked independently)
 [v3] @ prev.end | layer: 0
 
-# 拆分：同一资产不同时间段
+# Split: same asset, different segments
 [v_part1] @ 00:00 | trim_start: 0s | trim_end: 5s
 [v_part2] @ prev.end | trim_start: 5s | trim_end: 10s
 
-# 音频避让标记
+# Audio ducking roles
 [voice] @ 00:00 | role: voice
 [bgm]   @ 00:00 | role: bgm | volume: -20
 ```
 
-### 时间线属性一览
+### Timeline Properties
 
-| 属性 | 值 | 说明 |
-|------|-----|------|
-| `duration` | `10s` | 覆盖资产时长 |
-| `layer` | `0`, `1`, … | 层级，0=底 |
-| `pos` | `(x, y)` 或 `(50vw, 30vh)` | 像素位置或相对单位位置 |
-| `anchor` | `(0, 0)` | 相对锚点，见坐标系表 |
-| `style` | `"intro"` | 引用 Define Style 宏 |
-| `crop` | `(x, y, w, h)` | 画面裁剪 |
-| `trim_start` | `2s` | 播放起点（时间裁剪） |
-| `trim_end` | `8s` | 播放终点 |
-| `filter` | `"blackwhite"` | 全局滤镜 |
-| `transition` | `"crossfade"` | 入场叠化 |
-| `fadein` / `fadeout` | `1s` | 淡入淡出 |
-| `mute` | `true` | 静音视频音轨 |
-| `speed` | `2` | 倍速（影响时间轴计算） |
-| `volume` | `-28` | 音量 dB |
-| `role` | `voice` / `bgm` / `sfx` | 音频角色（避让用） |
+| Property | Value | Description |
+|----------|-------|-------------|
+| `duration` | `10s` | Override asset duration |
+| `layer` | `0`, `1`, … | Z-order (0 = bottom) |
+| `pos` | `(x, y)` or `(50vw, 30vh)` | Pixel or relative position |
+| `anchor` | `(0, 0)` | Relative anchor point |
+| `style` | `"intro"` | Reference a Style macro |
+| `crop` | `(x, y, w, h)` | Frame crop |
+| `trim_start` | `2s` | Start time trim |
+| `trim_end` | `8s` | End time trim |
+| `filter` | `"blackwhite"` | Global filter |
+| `transition` | `"crossfade"` | Entrance transition |
+| `fadein` / `fadeout` | `1s` | Fade in/out |
+| `mute` | `true` | Mute video track |
+| `speed` | `2` | Playback speed (affects timeline) |
+| `volume` | `-28` | Volume in dB |
+| `role` | `voice` / `bgm` / `sfx` | Audio role (for ducking) |
 
-### 位置单位 (CSS-like relative units)
+### Position Units (CSS-like)
 
-`pos` 支持混合单位，改变输出分辨率时比例自动保持：
+`pos` supports mixed units that auto-scale when you change output resolution:
 
-| 单位 | 含义 | 示例 |
-|------|------|------|
-| `vw` | 画布宽度的 % | `50vw` = 画布宽度的一半 |
-| `vh` | 画布高度的 % | `30vh` = 画布高度的 30% |
-| `pw` | 资产原始宽度的 % | `10pw` = 图片/视频宽度的 10% |
-| `ph` | 资产原始高度的 % | `5ph` |
-| `px` / 纯数字 | 绝对像素 | `200px` = 200px |
-
-```yaml
-# 居中 50% 宽, 30% 高
-[v1] @ 00:00 | pos: (50vw, 30vh)
-# 混合: 水平 10% 资产宽度, 垂直 200px
-[img] @ 00:05 | pos: (10pw, 200px)
-# 纯数字 = 绝对像素 (向后兼容)
-[img] @ 00:05 | pos: (100, 200)
-```
-
-> 输出从 1080p 改 4K 时，`50vw` 自动从 960px → 1920px，无需手动调整。
-
-### Anchor 坐标系
+| Unit | Meaning | Example |
+|------|---------|---------|
+| `vw` | % of canvas width | `50vw` = half canvas width |
+| `vh` | % of canvas height | `30vh` = 30% canvas height |
+| `pw` | % of asset width | `10pw` = 10% of image/video width |
+| `ph` | % of asset height | `5ph` |
+| `px` / number | Absolute pixels | `200px` = 200px |
 
 ```yaml
-anchor: (x, y)   # x, y ∈ [-1, 1]，屏幕坐标（y↓）
+[img] @ 00:05 | pos: (50vw, 30vh)    # relative
+[img] @ 00:05 | pos: (100, 200)      # absolute pixels
 ```
 
-| 坐标 | 位置 | 坐标 | 位置 | 坐标 | 位置 |
-|------|------|------|------|------|------|
-| `(-1,-1)` | 左上 | `(0,-1)` | 顶中 | `(1,-1)` | 右上 |
-| `(-1, 0)` | 左中 | `(0, 0)` | **正中** | `(1, 0)` | 右中 |
-| `(-1, 1)` | 左下 | `(0, 1)` | 底中 | `(1, 1)` | 右下 |
+### Anchor Coordinates
 
-> keyframe scale 先于 anchor 计算，`pos` 和 `anchor` 不可同时使用（`pos` 优先）。
+```yaml
+anchor: (x, y)   # x, y ∈ [-1, 1], screen coords (y↓)
+```
 
-### 关键帧 & 缓动
+| Coord | Position | Coord | Position | Coord | Position |
+|-------|----------|-------|----------|-------|----------|
+| `(-1,-1)` | Top-left | `(0,-1)` | Top-center | `(1,-1)` | Top-right |
+| `(-1, 0)` | Mid-left | `(0, 0)` | **Center** | `(1, 0)` | Mid-right |
+| `(-1, 1)` | Bot-left | `(0, 1)` | Bot-center | `(1, 1)` | Bot-right |
+
+> Keyframe `scale` is applied before anchor. `pos` takes priority over `anchor`.
+
+### Keyframes & Easing
 
 ```yaml
 [img1]:
-  scale:  { 0s: 0.5, 5s: 1.2, curve: "ease_in_out" }   # 缓动缩放
-  pos:    { 0s: (0,0), 5s: (200,100) }                   # 位移
-  opacity:{ 0s: 0.0, 1s: 1.0, 4s: 1.0, 5s: 0.0 }       # 透明度
-  rotate: { 0s: 0, 5s: 90 }                              # 旋转（度）
+  scale:  { 0s: 0.5, 5s: 1.2, curve: "ease_in_out" }
+  pos:    { 0s: (0,0), 5s: (200,100) }
+  opacity:{ 0s: 0.0, 1s: 1.0, 4s: 1.0, 5s: 0.0 }
+  rotate: { 0s: 0, 5s: 90 }
 ```
 
-缓动曲线:
+Easing curves: `linear` (default) | `ease_in` | `ease_out` | `ease_in_out`
 
-| `curve` | 效果 |
-|---------|------|
-| `linear` | 匀速（默认） |
-| `ease_in` | 加速进入，`1-cos(t·π/2)` |
-| `ease_out` | 减速停止，`sin(t·π/2)` |
-| `ease_in_out` | 平滑 S 曲线，`(1-cos(t·π))/2` |
+### Filters
 
-### 全局滤镜
+| Value | Effect |
+|-------|--------|
+| `blackwhite` | Grayscale |
+| `invert` | Invert colors |
+| `mirror_x` | Horizontal flip |
+| `mirror_y` | Vertical flip |
+| `painting` | Oil-painting effect |
 
-| `filter` 值 | 效果 |
-|-------------|------|
-| `blackwhite` | 黑白 |
-| `invert` | 反色 |
-| `mirror_x` | 水平翻转 |
-| `mirror_y` | 垂直翻转 |
-| `painting` | 油画效果 |
-
-### 文字卡片参数
+### Text Cards
 
 ```yaml
-[t]: text("内容", font: songti, size: 64, bg_opacity: 0.3, color: "#FFFFFF")
+[t]: text("Content", font: songti, size: 64, bg_opacity: 0.3, color: "#FFFFFF")
 ```
 
-| 参数 | 默认 | 说明 |
-|------|------|------|
+| Parameter | Default | Description |
+|-----------|---------|-------------|
 | `font` | `heiti` | `songti` / `heiti` |
-| `size` | 自动 | 像素字号 |
-| `bg_opacity` | `0.0` | 0=透明, 1=实色背景块 |
-| `color` | `#FFFFFF` | 文字颜色 hex |
-| `bg` | `#000000` | 背景色 hex |
+| `size` | Auto | Font size in px |
+| `bg_opacity` | `0.0` | 0=transparent, 1=solid background |
+| `color` | `#FFFFFF` | Text color |
+| `bg` | `#000000` | Background color |
 
-自动支持中文换行，`\n` 强制断行。
+Auto word-wrap with `\n` for hard line breaks.
 
-### 字幕
+### Subtitles
 
 ```yaml
 Subtitles: subtitles.srt
 ```
 
-标准 SRT 格式，自动叠在画面底部，预览模式下跟随时间轴偏移。`--no-subtitles` 跳过。
+Standard SRT format, rendered at the bottom of the frame.
 
-### 输出配置
+### Output Config
 
 ```yaml
 Format: mp4, Res: 1080p, FPS: 30
 ```
 
-Res 可选: `480p` `720p` `1080p` `4k`
+Res options: `480p` `720p` `1080p` `4k`
 
-## 完整 Pro 示例
+## Complete Example
+
+This is the [`demo.ktx`](demo.ktx) included in the repo — run it with `kinetix demo.ktx`:
 
 ```yaml
 Define Style("intro"):
   fadein: 1s
+  layer: 0
   transition: "crossfade", dur: 0.5s
 
-[v1]: video.mp4 [hero, intro]
-[img1]: logo.png [overlay]
-[t1]: text("Hello\nWorld", font: songti, bg_opacity: 0.4)
+[v1]: test_assets/video1.mp4 [hero]
+[v2]: test_assets/video2.mp4
+[img1]: test_assets/logo.png [overlay]
+[a1]: test_assets/bgm.wav
 
-[t1]  @ 00:00 | duration: 3s | style: "intro"
-[v1]  @ prev.end | style: "intro" | mute: true | speed: 2
-[img1]@ v1.end - 1s | duration: 3s | layer: 1 | anchor: (1,-1) | filter: "blackwhite"
+[v1]  @ 00:00 | layer: 0 | style: "intro" | mute: true | speed: 2
+[v2]  @ prev.end | layer: 0 | transition: "crossfade", dur: 1s
+[img1] @ v1.end - 1s | duration: 3s | layer: 1 | anchor: (1, -1) | filter: "blackwhite"
+[a1]  @ 00:00 | volume: -20 | role: bgm
 
 [img1]:
   scale: { 0s: 0.3, 3s: 1.0, curve: "ease_in_out" }
 
-Subtitles: subtitles.srt
 Format: mp4, Res: 1080p, FPS: 30
 ```
 
-## CLI 参考
+## Architecture
 
 ```
-kinetix <input.ktx> [output.mp4] [options]
-
-Options:
-  --live               打开 ffplay 实时预览窗口（无编码，延迟极低）
-  --preview START-END  仅渲染时间片段（例: --preview 00:30-01:00）
-  --graph [path]       生成时间轴拓扑图 PNG（不渲染视频）
-  --no-subtitles       跳过 SRT 字幕渲染
+parse(.ktx) → apply_styles → resolve_timeline → render(.mp4) | live_preview(ffplay) | graph(.png)
 ```
 
-## 支持的文件格式
+## License
 
-| 类型 | 扩展名 |
-|------|--------|
-| 视频 | `.mp4` `.mov` `.avi` `.mkv` |
-| 图片 | `.jpg` `.jpeg` `.png` `.bmp` `.gif` |
-| 音频 | `.mp3` `.wav` `.aac` `.flac` `.m4a` |
+[MIT](LICENSE)
