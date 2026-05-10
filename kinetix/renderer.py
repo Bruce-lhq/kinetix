@@ -539,7 +539,13 @@ def _apply_scale_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
 
 
 def _apply_opacity_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
-    return clip.with_opacity(lambda t: _lerp(t, frames, curve))
+    def filter_mask(get_frame, t):
+        frame = get_frame(t)
+        opacity = _lerp(t, frames, curve)
+        return (frame * opacity).astype(frame.dtype)
+    clip = clip.with_opacity(1.0)  # ensure mask exists
+    clip.mask = clip.mask.transform(filter_mask)
+    return clip
 
 
 def _apply_pos_keyframes(clip, frames: list[tuple[float, Any]], curve: str):
