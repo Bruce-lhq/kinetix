@@ -8,7 +8,7 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from kinetix.main import compile_ktx, live_mode
+from kinetix.main import compile_ktx, graph_mode, live_mode
 
 
 def _parse_time(raw: str) -> float:
@@ -39,13 +39,17 @@ def main():
                         help="open ffplay preview window instead of encoding to file")
     parser.add_argument("--no-subtitles", action="store_true",
                         help="skip SRT subtitle rendering")
+    parser.add_argument("--graph", action="store_true",
+                        help="generate timeline topology PNG (no video render)")
     args = parser.parse_args()
 
     preview = None
     if args.preview:
         preview = _parse_range(args.preview)
 
-    if args.live:
+    if args.graph:
+        graph_mode(args.input, args.output)
+    elif args.live:
         live_mode(args.input, no_subtitles=args.no_subtitles)
     else:
         compile_ktx(args.input, args.output, preview_range=preview, no_subtitles=args.no_subtitles)

@@ -376,12 +376,17 @@ def _parse_crop(val: str | None) -> tuple[int, int, int, int] | None:
     return None
 
 
-def _parse_pos(val: str | None) -> tuple[int, int] | None:
+def _parse_pos(val: str | None) -> tuple[int, int] | str | None:
+    """Parse position. Returns tuple for pure px, str for relative units."""
     if val is None:
         return None
+    # Try pure pixel: (200, 300)
     m = re.match(r'\(\s*(\d+)\s*,\s*(\d+)\s*\)', val)
     if m:
         return (int(m.group(1)), int(m.group(2)))
+    # Try relative: (50vw, 30vh) or (10pw, 200px)
+    if re.search(r'[vp][wh]', val) or re.search(r'px', val):
+        return val.strip()
     return None
 
 

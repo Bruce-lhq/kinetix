@@ -7,6 +7,7 @@ import sys
 from pathlib import Path
 
 from .ast_nodes import AssetType, KinetiXDocument, Style, TimelineEntry
+from .graphviz_timeline import generate_timeline_graph
 from .parser import parse, RE_EXPR
 from .renderer import live_preview, render
 
@@ -189,6 +190,22 @@ def live_mode(ktx_path: str, no_subtitles: bool = False) -> None:
     resolve_timeline(doc)
     _merge_keyframe_entries(doc)
     live_preview(doc)
+
+
+def graph_mode(ktx_path: str, output_path: str | None = None) -> str:
+    """Parse, resolve, and generate a timeline topology PNG."""
+    source = Path(ktx_path).read_text(encoding="utf-8")
+    doc = parse(source)
+    _apply_styles(doc)
+    resolve_timeline(doc)
+    _merge_keyframe_entries(doc)
+    if output_path is None:
+        output_path = str(Path(ktx_path).with_suffix("")) + "_timeline"
+    else:
+        output_path = str(Path(output_path).with_suffix(""))
+    result = generate_timeline_graph(doc, output_path)
+    print(f"[graph] → {result}")
+    return result
 
 
 def _merge_keyframe_entries(doc: KinetiXDocument) -> None:

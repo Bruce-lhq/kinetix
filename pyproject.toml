@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinetix"
-version = "0.1.0"
+version = "0.2.0"
 description = "Declarative video compilation engine — .ktx text files to .mp4"
 requires-python = ">=3.10"
 dependencies = [

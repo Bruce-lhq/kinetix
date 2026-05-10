@@ -78,7 +78,7 @@ Style 支持属性: `fadein`, `fadeout`, `transition`, `volume`, `mute`, `layer`
 |------|-----|------|
 | `duration` | `10s` | 覆盖资产时长 |
 | `layer` | `0`, `1`, … | 层级，0=底 |
-| `pos` | `(x, y)` | 绝对像素位置 |
+| `pos` | `(x, y)` 或 `(50vw, 30vh)` | 像素位置或相对单位位置 |
 | `anchor` | `(0, 0)` | 相对锚点，见坐标系表 |
 | `style` | `"intro"` | 引用 Define Style 宏 |
 | `crop` | `(x, y, w, h)` | 画面裁剪 |
@@ -91,6 +91,29 @@ Style 支持属性: `fadein`, `fadeout`, `transition`, `volume`, `mute`, `layer`
 | `speed` | `2` | 倍速（影响时间轴计算） |
 | `volume` | `-28` | 音量 dB |
 | `role` | `voice` / `bgm` / `sfx` | 音频角色（避让用） |
+
+### 位置单位 (CSS-like relative units)
+
+`pos` 支持混合单位，改变输出分辨率时比例自动保持：
+
+| 单位 | 含义 | 示例 |
+|------|------|------|
+| `vw` | 画布宽度的 % | `50vw` = 画布宽度的一半 |
+| `vh` | 画布高度的 % | `30vh` = 画布高度的 30% |
+| `pw` | 资产原始宽度的 % | `10pw` = 图片/视频宽度的 10% |
+| `ph` | 资产原始高度的 % | `5ph` |
+| `px` / 纯数字 | 绝对像素 | `200px` = 200px |
+
+```yaml
+# 居中 50% 宽, 30% 高
+[v1] @ 00:00 | pos: (50vw, 30vh)
+# 混合: 水平 10% 资产宽度, 垂直 200px
+[img] @ 00:05 | pos: (10pw, 200px)
+# 纯数字 = 绝对像素 (向后兼容)
+[img] @ 00:05 | pos: (100, 200)
+```
+
+> 输出从 1080p 改 4K 时，`50vw` 自动从 960px → 1920px，无需手动调整。
 
 ### Anchor 坐标系
 
@@ -195,8 +218,9 @@ Format: mp4, Res: 1080p, FPS: 30
 kinetix <input.ktx> [output.mp4] [options]
 
 Options:
-  --live              打开 ffplay 实时预览窗口（无编码，延迟极低）
+  --live               打开 ffplay 实时预览窗口（无编码，延迟极低）
   --preview START-END  仅渲染时间片段（例: --preview 00:30-01:00）
+  --graph [path]       生成时间轴拓扑图 PNG（不渲染视频）
   --no-subtitles       跳过 SRT 字幕渲染
 ```
 

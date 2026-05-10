@@ -87,7 +87,7 @@ class TimelineEntry:
     start_time: float | str  # absolute s | 'prev.end' | 'v1.end - 2s' (expression)
     layer: int = 0
     duration: float | None = None
-    position: tuple[int, int] | None = None
+    position: tuple[int, int] | str | None = None  # absolute px tuple or "50vw,30vh" string
     transition: str | None = None
     transition_dur: float = 0.0
     fadein: float | None = None

@@ -7,6 +7,7 @@ live preview via ffplay.
 from __future__ import annotations
 
 import math
+import re
 import sys
 from pathlib import Path
 from typing import Any
@@ -62,6 +63,72 @@ def _load_image_cover(path: str, canvas_size: tuple[int, int]) -> np.ndarray:
         img = img.convert('RGB')
     img = ImageOps.fit(img, canvas_size, method=PILImage.LANCZOS)
     return np.array(img)
+
+
+def _get_asset_original_size(path, fallback: tuple[int, int]) -> tuple[int, int]:
+    """Get original pixel dimensions of an image or video file."""
+    p = Path(path)
+    if not p.exists():
+        return fallback
+    ext = p.suffix.lower()
+    if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
+        try:
+            from PIL import Image as PILImage
+            with PILImage.open(str(p)) as img:
+                return img.size
+        except Exception:
+            return fallback
+    elif ext in ('.mp4', '.mov', '.avi', '.mkv'):
+        try:
+            from moviepy import VideoFileClip
+            with VideoFileClip(str(p)) as v:
+                return (v.w, v.h)
+        except Exception:
+            return fallback
+    return fallback
+
+
+# ============================================================================
+# Relative position resolver
+# ============================================================================
+
+_RE_UNIT = re.compile(r'(-?[\d.]+)\s*(vw|vh|pw|ph|px)')
+
+
+def _resolve_position(pos: str, canvas_size: tuple[int, int], asset_size: tuple[int, int]) -> tuple[int, int]:
+    """Resolve a position string like '(50vw, 30vh)' or '(10pw, 200px)' to absolute px.
+
+    Units:
+      vw/vh — % of viewport (canvas) width/height   e.g. 50vw = 50% of canvas width
+      pw/ph — % of asset original pixel dimensions    e.g. 10pw = 10% of asset width
+      px    — absolute pixel                          e.g. 200px = 200
+    """
+    parts = pos.strip("() ").split(",")
+    if len(parts) != 2:
+        return (0, 0)
+    x_val = _resolve_unit(parts[0].strip(), canvas_size[0], asset_size[0])
+    y_val = _resolve_unit(parts[1].strip(), canvas_size[1], asset_size[1])
+    return (int(x_val), int(y_val))
+
+
+def _resolve_unit(raw: str, canvas_dim: int, asset_dim: int) -> float:
+    m = _RE_UNIT.match(raw)
+    if not m:
+        try:
+            return float(raw)
+        except ValueError:
+            return 0.0
+    val = float(m.group(1))
+    unit = m.group(2)
+    if unit == "vw":
+        return val / 100 * canvas_dim
+    elif unit == "vh":
+        return val / 100 * canvas_dim
+    elif unit == "pw":
+        return val / 100 * asset_dim
+    elif unit == "ph":
+        return val / 100 * asset_dim
+    return val  # px
 
 
 # ============================================================================
@@ -328,9 +395,14 @@ def _build_video_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int
     for kf in entry.keyframes:
         base = _apply_keyframes(base, kf)
 
-    # position
+    # position (absolute or relative units)
     if entry.position is not None:
-        base = base.with_position(entry.position)
+        if isinstance(entry.position, str):
+            asset_size = _get_asset_original_size(path, canvas_size)
+            pos = _resolve_position(entry.position, canvas_size, asset_size)
+        else:
+            pos = entry.position
+        base = base.with_position(pos)
     elif entry.anchor not in ("(0, 0)", "center"):
         try:
             clip_w, clip_h = base.size
