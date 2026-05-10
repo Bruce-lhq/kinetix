@@ -10,10 +10,31 @@ import math
 import numpy as np
 from PIL import Image, ImageDraw, ImageFont
 
-_FONTS = {
-    "songti": "/System/Library/Fonts/Supplemental/Songti.ttc",
-    "heiti":  "/System/Library/Fonts/STHeiti Medium.ttc",
-    "default": "/System/Library/Fonts/STHeiti Medium.ttc",
+
+def _find_font(candidates: list[str]) -> str | None:
+    """Return the first existing font path from candidates, or None."""
+    for p in candidates:
+        if Path(p).exists():
+            return p
+    return None
+
+
+_FONT_CANDIDATES = {
+    "songti": [
+        "/System/Library/Fonts/Supplemental/Songti.ttc",          # macOS
+        "/usr/share/fonts/truetype/noto/NotoSerifCJK-Regular.ttc",  # Linux
+        "C:\\Windows\\Fonts\\simsum.ttc",                          # Windows
+    ],
+    "heiti": [
+        "/System/Library/Fonts/STHeiti Medium.ttc",                # macOS
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",   # Linux
+        "C:\\Windows\\Fonts\\simhei.ttf",                           # Windows
+    ],
+    "default": [
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "C:\\Windows\\Fonts\\simhei.ttf",
+    ],
 }
 
 
@@ -43,7 +64,7 @@ def render_text_card(
     """
     img = Image.new("RGBA" if bg_opacity > 0 else "RGB", size, bg_color)
     draw = ImageDraw.Draw(img)
-    font_path = _FONTS.get(font_name, _FONTS["default"])
+    font_path = _find_font(_FONT_CANDIDATES.get(font_name, _FONT_CANDIDATES["default"]))
 
     # split hard breaks, then word-wrap each line
     hard_lines = content.split("\n")
@@ -52,7 +73,7 @@ def render_text_card(
     if font_size is None:
         font_size = _autosize(draw, hard_lines, font_path, max_w, size[1] - 100, line_spacing)
 
-    font = ImageFont.truetype(font_path, font_size)
+    font = ImageFont.truetype(font_path, font_size) if font_path else ImageFont.load_default(font_size)
 
     # word-wrap
     wrapped_lines: list[str] = []
@@ -137,13 +158,13 @@ def _break_long_word(word: str, font: ImageFont.FreeTypeFont, draw: ImageDraw.Dr
 
 
 def _autosize(draw: ImageDraw.Draw, hard_lines: list[str],
-              font_path: str, max_w: int, max_h: int,
+              font_path: str | None, max_w: int, max_h: int,
               line_spacing: float) -> int:
     lo, hi = 12, 200
     best = lo
     while lo <= hi:
         mid = (lo + hi) // 2
-        font = ImageFont.truetype(font_path, mid)
+        font = ImageFont.truetype(font_path, mid) if font_path else ImageFont.load_default(mid)
 
         # word-wrap all lines
         wrapped: list[str] = []

@@ -451,7 +451,12 @@ def _build_audio_clip(asset: Asset, entry: TimelineEntry):
 def _build_subtitle_clips(subs, canvas_size: tuple[int, int]):
     from moviepy import TextClip
     clips = []
-    font = "/System/Library/Fonts/STHeiti Medium.ttc"
+    font_candidates = [
+        "/System/Library/Fonts/STHeiti Medium.ttc",
+        "/usr/share/fonts/truetype/noto/NotoSansCJK-Regular.ttc",
+        "C:\\Windows\\Fonts\\simhei.ttf",
+    ]
+    font = next((f for f in font_candidates if Path(f).exists()), None)
     for sub in subs:
         dur = sub.end - sub.start
         if dur <= 0:

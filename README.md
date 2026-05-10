@@ -3,7 +3,7 @@
 声明式视频编译引擎 — 用纯文本 `.ktx` 文件描述视频，编译输出 `.mp4`。
 
 ```bash
-pip install -r requirements.txt
+pip install -e .
 kinetix demo.ktx                     # 全量编译
 kinetix demo.ktx output.mp4          # 指定输出路径
 kinetix demo.ktx --live              # 实时预览窗口（无重编码）
