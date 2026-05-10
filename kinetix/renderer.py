@@ -444,7 +444,7 @@ def _build_audio_clip(asset: Asset, entry: TimelineEntry):
     if entry.speed is not None and entry.speed > 0 and entry.speed != 1.0:
         clip = clip.with_effects([vfx.MultiplySpeed(entry.speed)])
     if entry.volume is not None:
-        clip = clip.multiplied_by(10 ** (entry.volume / 20.0))
+        clip = clip.with_volume_scaled(10 ** (entry.volume / 20.0))
     return clip
 
 

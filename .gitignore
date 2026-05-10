@@ -6,3 +6,6 @@ build/
 dist/
 *.egg-info/
 .DS_Store
+
+# demo assets are tracked despite global *.mp4 / *.wav ignores
+!test_assets/*
