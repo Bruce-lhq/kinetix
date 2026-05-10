@@ -1,13 +1,18 @@
 {
   "name": "ktx-syntax",
-  "displayName": "KinetiX (.ktx) Syntax",
-  "description": "Syntax highlighting for KinetiX declarative video timeline files (.ktx)",
-  "version": "0.1.0",
+  "displayName": "KinetiX (.ktx)",
+  "description": "Syntax highlighting + frame snapshot preview for KinetiX .ktx files",
+  "version": "0.2.0",
   "publisher": "kinetix",
+  "icon": "icon.png",
   "engines": {
     "vscode": "^1.75.0"
   },
   "categories": ["Programming Languages"],
+  "activationEvents": [
+    "onLanguage:ktx"
+  ],
+  "main": "./extension.js",
   "contributes": {
     "languages": [
       {
@@ -22,6 +27,20 @@
         "language": "ktx",
         "scopeName": "source.ktx",
         "path": "./syntaxes/ktx.tmLanguage.json"
+      }
+    ],
+    "commands": [
+      {
+        "command": "ktx.snapshot",
+        "title": "KinetiX: Snapshot Frame at Time",
+        "category": "KinetiX"
+      }
+    ],
+    "keybindings": [
+      {
+        "command": "ktx.snapshot",
+        "key": "ctrl+shift+k",
+        "when": "editorLangId == ktx"
       }
     ]
   }
