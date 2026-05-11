@@ -33,7 +33,8 @@
 **前置条件：** Python ≥ 3.10。[ffmpeg](https://ffmpeg.org/)（可选，仅 `--live` 预览需要）。
 
 ```bash
-pip install kinetix-video
+pip install kinetix-video                # 核心引擎
+pip install kinetix-video[template,svg]  # + Jinja2 模板 & SVG 支持
 ```
 
 下载 [demo.ktx](demo.ktx) 和测试素材，然后：
@@ -84,8 +85,6 @@ from kinetix.main import compile_template
 compile_template("template.ktx", {"user": {"name": "Alice"}, "score": 95})
 ```
 
-安装时带上模板依赖：`pip install kinetix-video[template]`
-
 ## VS Code 扩展
 
 `.ktx` 文件的语法高亮 + 单帧快照预览。
@@ -115,7 +114,7 @@ cp -r vscode-ktx ~/.vscode/extensions/ktx-syntax-0.2.0/
 [t1]:  text("第一行\n第二行", font: songti, bg_opacity: 0.5)
 ```
 
-支持的格式：`.mp4` `.mov` `.avi` `.mkv` | `.jpg` `.jpeg` `.png` `.bmp` `.gif` | `.mp3` `.wav` `.aac` `.flac` `.m4a`
+支持的格式：`.mp4` `.mov` `.avi` `.mkv` | `.jpg` `.jpeg` `.png` `.bmp` `.gif` `.svg` | `.mp3` `.wav` `.aac` `.flac` `.m4a`
 
 ### 样式宏
 
@@ -347,6 +346,10 @@ CV 研究者提供视觉算法，KinetiX 提供时间轴引擎。互惠共生，
 ### Web 在线游乐场
 
 左边 Monaco 编辑器写 `.ktx`，右边 Wasm 驱动的实时视频预览。无需装 Python 就能体验「代码剪辑」。前端大佬的封神之地。
+
+### 程序化数学动画（Manim）
+
+支持 `manim("scene.py")` 作为素材类型。KinetiX 把 Manim 场景预渲染为缓存的 `.mp4` 存入 `.kinetix_cache/`，后续当作普通视频使用。数学教学创作者的福音。
 
 ### 官方 LLM 绑定
 

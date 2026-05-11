@@ -56,13 +56,29 @@ def live_preview(doc: KinetiXDocument) -> None:
 # Image helpers
 # ============================================================================
 
-def _load_image(path: str) -> np.ndarray:
-    """Load image at original size, preserving alpha channel."""
+def _load_image(path: str, canvas_size: tuple[int, int] | None = None) -> np.ndarray:
+    """Load image at original size, preserving alpha channel.
+    SVG files are rasterized via cairosvg at 2x canvas (or 2048px fallback).
+    """
+    p = Path(path)
+    if p.suffix.lower() == '.svg':
+        return _load_svg(str(p), canvas_size or (2048, 2048))
     from PIL import Image as PILImage
     img = PILImage.open(path)
     if img.mode == 'RGBA':
         return np.array(img)
     return np.array(img.convert('RGB'))
+
+
+def _load_svg(path: str, canvas_size: tuple[int, int]) -> np.ndarray:
+    """Render SVG to RGBA numpy array at 2x canvas resolution."""
+    import io
+    from PIL import Image as PILImage
+    import cairosvg
+    w, h = canvas_size[0] * 2, canvas_size[1] * 2
+    png_bytes = cairosvg.svg2png(url=path, output_width=w, output_height=h)
+    img = PILImage.open(io.BytesIO(png_bytes))
+    return np.array(img.convert('RGBA'))
 
 
 def _get_asset_original_size(path, fallback: tuple[int, int]) -> tuple[int, int]:
@@ -71,7 +87,9 @@ def _get_asset_original_size(path, fallback: tuple[int, int]) -> tuple[int, int]
     if not p.exists():
         return fallback
     ext = p.suffix.lower()
-    if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.gif'):
+    if ext in ('.jpg', '.jpeg', '.png', '.bmp', '.gif', '.svg'):
+        if ext == '.svg':
+            return fallback  # vector, no pixel dimensions
         try:
             from PIL import Image as PILImage
             with PILImage.open(str(p)) as img:
@@ -390,7 +408,7 @@ def _build_video_clip(asset: Asset, entry: TimelineEntry, canvas_size: tuple[int
             base = base.resized(cover_scale)
     else:
         dur = entry.duration or asset.duration or 5.0
-        frame = _load_image(str(path))
+        frame = _load_image(str(path), canvas_size)
         base = ImageClip(frame).with_duration(dur)
         # Always contain image to canvas first, so scale keyframes
         # operate relative to contained size (not raw pixel dimensions).

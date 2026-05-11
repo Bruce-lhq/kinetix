@@ -220,6 +220,7 @@ _ASSET_EXT: dict[str, AssetType] = {
     '.mkv': AssetType.VIDEO,
     '.png': AssetType.IMAGE, '.jpg': AssetType.IMAGE, '.jpeg': AssetType.IMAGE,
     '.bmp': AssetType.IMAGE, '.gif': AssetType.IMAGE,
+    '.svg': AssetType.IMAGE,
     '.mp3': AssetType.AUDIO, '.wav': AssetType.AUDIO, '.aac': AssetType.AUDIO,
     '.flac': AssetType.AUDIO, '.m4a': AssetType.AUDIO,
 }

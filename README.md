@@ -33,7 +33,8 @@
 **Prerequisites:** Python ≥ 3.10. [ffmpeg](https://ffmpeg.org/) (optional, for `--live` preview only).
 
 ```bash
-pip install kinetix-video
+pip install kinetix-video                # core engine
+pip install kinetix-video[template,svg]  # + Jinja2 templates & SVG support
 ```
 
 Grab the [demo.ktx](demo.ktx) and test assets, then:
@@ -84,8 +85,6 @@ from kinetix.main import compile_template
 compile_template("template.ktx", {"user": {"name": "Alice"}, "score": 95})
 ```
 
-Install with template support: `pip install kinetix-video[template]`
-
 ## VS Code Extension
 
 Syntax highlighting + frame snapshot preview for `.ktx` files.
@@ -115,7 +114,7 @@ The snapshot command renders a single frame at any timecode (e.g. `5`, `1:30`, `
 [t1]:  text("Line 1\nLine 2", font: songti, bg_opacity: 0.5)
 ```
 
-Supported formats: `.mp4` `.mov` `.avi` `.mkv` | `.jpg` `.jpeg` `.png` `.bmp` `.gif` | `.mp3` `.wav` `.aac` `.flac` `.m4a`
+Supported formats: `.mp4` `.mov` `.avi` `.mkv` | `.jpg` `.jpeg` `.png` `.bmp` `.gif` `.svg` | `.mp3` `.wav` `.aac` `.flac` `.m4a`
 
 ### Style Macros
 
@@ -347,6 +346,10 @@ Right now KinetiX renders frame-by-frame via moviepy on CPU. The goal: a compile
 ### Web playground
 
 Monaco editor on the left, Wasm-powered preview on the right. Write `.ktx` in the browser, see the result instantly. No Python install required. Frontend hackers, assemble.
+
+### Procedural math animations (Manim)
+
+Support `manim("scene.py")` as an asset type. KinetiX pre-renders the Manim scene into a cached `.mp4` under `.kinetix_cache/`, then treats it like any other video clip. Math educators, this one's for you.
 
 ### Native LLM bindings
 

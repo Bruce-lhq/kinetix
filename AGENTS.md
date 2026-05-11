@@ -44,6 +44,7 @@ README.md          用户文档
 
 ### 渲染层
 - 图片以**原始尺寸加载**（保留 alpha 通道），**始终先 contain 到画布** (`min(cw/iw, ch/ih)`)，关键帧 scale 在此基础上操作
+- `.svg` 通过 `cairosvg` 在内存中以 2×画布分辨率渲染为 RGBA 数组（可选依赖 `[svg]`）
 - 视频 `resized(cover_scale)` 铺满画布; **无损适配**: 基于原始比例 cover, 确保 4K→1080p 无畸变
 - 所有中间处理 (Crop/Resize/Trim) 基于原始素材分辨率比例
 

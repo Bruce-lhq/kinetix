@@ -35,6 +35,7 @@ dependencies = [
 
 [project.optional-dependencies]
 template = ["jinja2>=3"]
+svg = ["cairosvg>=2"]
 
 [project.urls]
 Homepage = "https://github.com/Bruce-lhq/kinetix-video"
