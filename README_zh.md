@@ -58,6 +58,30 @@ kinetix <input.ktx> [output.mp4] [选项]
   --no-subtitles        跳过 SRT 字幕渲染
 ```
 
+## 模板变量
+
+`.ktx` 支持 Jinja2 风格的 `{{ 变量 }}` 语法，用于批量视频生成：
+
+```yaml
+[t1]: text("{{ user.name }}，得分：{{ score }}", font: heiti, size: 56)
+[v1]: {{ bg_video }}
+[v1] @ 00:00 | duration: {{ duration }}s
+```
+
+```bash
+# CLI 传单个变量
+kinetix template.ktx --var user.name=Alice --var score=95
+
+# CLI 从 JSON 文件加载
+kinetix template.ktx --data vars.json
+
+# Python API
+from kinetix.main import compile_template
+compile_template("template.ktx", {"user": {"name": "Alice"}, "score": 95})
+```
+
+安装时带上模板依赖：`pip install kinetix-video[template]`
+
 ## VS Code 扩展
 
 `.ktx` 文件的语法高亮 + 单帧快照预览。
@@ -292,9 +316,9 @@ parse(.ktx) → apply_styles → resolve_timeline → render(.mp4) | live_previe
 
 KinetiX 目前是一个精悍的 MVP——做好时间轴引擎这一件事。真正的重头戏在下面。这些方向中任何一项让你心动，欢迎直接提 PR。
 
-### 变量驱动与模板化
+### 变量驱动与模板化 ✅
 
-让 `.ktx` 支持 Jinja2 风格的模板语法，配合 Python API 批量喂数据。
+Jinja2 模板语法，配合 Python API 批量喂数据。
 
 ```yaml
 [t1]: text("{{ user.name }}，您的得分：{{ score }}", font: heiti, size: 56)

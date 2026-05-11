@@ -2,10 +2,12 @@
 """CLI entry point: `kinetix demo.ktx [--preview XX-YY] [--live] [--no-subtitles]`."""
 
 import argparse
+import json
 import re
 from pathlib import Path
 
 from kinetix.main import compile_ktx, graph_mode, live_mode
+from kinetix.template import load_variables_file
 
 
 def _parse_time(raw: str) -> float:
@@ -20,6 +22,29 @@ def _parse_range(raw: str) -> tuple[float, float]:
     if len(parts) != 2:
         raise argparse.ArgumentTypeError(f"invalid range: {raw} (use START-END)")
     return (_parse_time(parts[0].strip()), _parse_time(parts[1].strip()))
+
+
+def _parse_var(raw: str) -> tuple[str, str]:
+    if "=" not in raw:
+        raise argparse.ArgumentTypeError(f"invalid var: {raw} (use key=value)")
+    k, v = raw.split("=", 1)
+    # Try to parse as JSON for numbers/bools, fall back to string
+    try:
+        v = json.loads(v)
+    except (json.JSONDecodeError, ValueError):
+        pass
+    return k, v
+
+
+def _collect_variables(args) -> dict | None:
+    """Collect template variables from --data and --var flags."""
+    variables: dict = {}
+    if args.data:
+        variables.update(load_variables_file(args.data))
+    if args.var:
+        for k, v in args.var:
+            variables[k] = v
+    return variables or None
 
 
 def main():
@@ -38,18 +63,25 @@ def main():
                         help="skip SRT subtitle rendering")
     parser.add_argument("--graph", action="store_true",
                         help="generate timeline topology PNG (no video render)")
+    parser.add_argument("--data", type=str, default=None, metavar="FILE",
+                        help="load template variables from JSON file")
+    parser.add_argument("--var", type=_parse_var, action="append", default=None,
+                        metavar="KEY=VALUE",
+                        help="set a template variable (repeatable), e.g. --var name=Alice")
     args = parser.parse_args()
 
     preview = None
     if args.preview:
         preview = _parse_range(args.preview)
 
+    variables = _collect_variables(args)
+
     if args.graph:
-        graph_mode(args.input, args.output)
+        graph_mode(args.input, args.output, variables=variables)
     elif args.live:
-        live_mode(args.input, no_subtitles=args.no_subtitles)
+        live_mode(args.input, no_subtitles=args.no_subtitles, variables=variables)
     else:
-        compile_ktx(args.input, args.output, preview_range=preview, no_subtitles=args.no_subtitles)
+        compile_ktx(args.input, args.output, preview_range=preview, no_subtitles=args.no_subtitles, variables=variables)
 
 
 if __name__ == "__main__":

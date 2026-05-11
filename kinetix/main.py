@@ -6,6 +6,7 @@ import re
 from pathlib import Path
 
 from .ast_nodes import AssetType, KinetiXDocument, Style, TimelineEntry
+from .template import render_template as _render_template
 from .timeline_graph import generate_timeline_graph
 from .parser import parse, RE_EXPR
 from .renderer import live_preview, render
@@ -173,9 +174,10 @@ def _compute_audio_ducking(doc: KinetiXDocument) -> None:
 # Compile
 # ---------------------------------------------------------------------------
 
-def _prepare(ktx_path: str) -> KinetiXDocument:
-    """Shared pipeline: parse → resolve paths → apply styles → resolve timeline → merge keyframes."""
+def _prepare(ktx_path: str, variables: dict | None = None) -> KinetiXDocument:
+    """Shared pipeline: template → parse → resolve paths → apply styles → resolve timeline → merge keyframes."""
     source = Path(ktx_path).read_text(encoding="utf-8")
+    source = _render_template(source, variables)
     doc = parse(source)
     _resolve_asset_paths(doc, Path(ktx_path).resolve().parent)
     _apply_styles(doc)
@@ -186,8 +188,9 @@ def _prepare(ktx_path: str) -> KinetiXDocument:
 
 def compile_ktx(ktx_path: str, output_path: str | None = None,
                 preview_range: tuple[float, float] | None = None,
-                no_subtitles: bool = False) -> None:
-    doc = _prepare(ktx_path)
+                no_subtitles: bool = False,
+                variables: dict | None = None) -> None:
+    doc = _prepare(ktx_path, variables=variables)
     _compute_audio_ducking(doc)
 
     if output_path is None:
@@ -199,15 +202,33 @@ def compile_ktx(ktx_path: str, output_path: str | None = None,
     render(doc, output_path, preview_range=preview_range, no_subtitles=no_subtitles)
 
 
-def live_mode(ktx_path: str, no_subtitles: bool = False) -> None:
+def compile_template(ktx_path: str, variables: dict,
+                     output_path: str | None = None,
+                     preview_range: tuple[float, float] | None = None,
+                     no_subtitles: bool = False) -> None:
+    """Compile a .ktx file with Jinja2 template variables.
+
+    Args:
+        ktx_path: path to .ktx template file.
+        variables: dict of template variables.
+        output_path: optional output .mp4 path.
+        preview_range: optional (start, end) time slice.
+        no_subtitles: skip SRT subtitle rendering.
+    """
+    compile_ktx(ktx_path, output_path, preview_range, no_subtitles, variables=variables)
+
+
+def live_mode(ktx_path: str, no_subtitles: bool = False,
+              variables: dict | None = None) -> None:
     """Parse, resolve, and stream to ffplay without encoding to file."""
-    doc = _prepare(ktx_path)
+    doc = _prepare(ktx_path, variables=variables)
     live_preview(doc)
 
 
-def graph_mode(ktx_path: str, output_path: str | None = None) -> str:
+def graph_mode(ktx_path: str, output_path: str | None = None,
+               variables: dict | None = None) -> str:
     """Parse, resolve, and generate a timeline topology PNG."""
-    doc = _prepare(ktx_path)
+    doc = _prepare(ktx_path, variables=variables)
     if output_path is None:
         output_path = str(Path(ktx_path).with_suffix("")) + "_timeline"
     else:

@@ -58,6 +58,30 @@ Options:
   --no-subtitles        Skip SRT subtitle rendering
 ```
 
+## Template Variables
+
+`.ktx` files support Jinja2-style `{{ variables }}` for batch video generation:
+
+```yaml
+[t1]: text("Hi {{ user.name }}, score: {{ score }}", font: heiti, size: 56)
+[v1]: {{ bg_video }}
+[v1] @ 00:00 | duration: {{ duration }}s
+```
+
+```bash
+# From CLI — single vars
+kinetix template.ktx --var user.name=Alice --var score=95
+
+# From CLI — JSON file
+kinetix template.ktx --data vars.json
+
+# From Python
+from kinetix.main import compile_template
+compile_template("template.ktx", {"user": {"name": "Alice"}, "score": 95})
+```
+
+Install with template support: `pip install kinetix-video[template]`
+
 ## VS Code Extension
 
 Syntax highlighting + frame snapshot preview for `.ktx` files.
@@ -292,9 +316,9 @@ Generate a timeline topology graph with `kinetix demo.ktx --graph`:
 
 KinetiX is a lean, focused MVP right now — a timeline engine that does one thing well. The fun stuff is planned. If any of these excite you, PRs are wide open.
 
-### Template-driven video
+### Template-driven video ✅
 
-Support Jinja2-style `{{ variables }}` in `.ktx` files, with a Python API to feed data in.
+Jinja2-style `{{ variables }}` in `.ktx` files, with a Python API to feed data in.
 
 ```yaml
 [t1]: text("Hi {{ user.name }}, your score is {{ score }}", font: heiti, size: 56)
