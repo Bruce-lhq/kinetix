@@ -1,10 +1,11 @@
 # KinetiX
 
-声明式视频编译引擎 — 用纯文本 `.ktx` 文件描述多轨视频，编译输出 `.mp4`。
-A declarative video composition engine — write timelines in `.ktx`, compile to `.mp4`.
+A declarative video composition engine — write multi-track video timelines in plain `.ktx` text files, compile to `.mp4`.
 
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 [![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+
+[中文版](README_zh.md)
 
 ## Quick Start
 
@@ -226,7 +227,7 @@ Define Style("cinematic"):
 [v2]: test_assets/v_order.mp4
 [logo]: test_assets/logo.png
 [bgm]: test_assets/bgm_epic.mp3
-[t1]: text("告别鼠标拖拽，纯代码剪大片", font: songti, size: 64,
+[t1]: text("Goodbye drag-and-drop, hello code-first editing", font: songti, size: 64,
            stroke_width: 2, stroke_color: "#00000060")
 
 [bgm] @ 00:00 | volume: -10 | trim_start: 24s | duration: 16s | fadein: 1s | fadeout: 3s
