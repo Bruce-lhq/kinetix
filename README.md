@@ -1,11 +1,28 @@
-# KinetiX
+<p align="center">
+  <img src="test_assets/logo.svg" width="180" alt="KinetiX logo">
+</p>
 
-A declarative video composition engine — write multi-track video timelines in plain `.ktx` text files, compile to `.mp4`.
+<h1 align="center">KinetiX</h1>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
+  <a href="README_zh.md">中文版</a>
+</p>
 
-[中文版](README_zh.md)
+<p align="center">
+  <strong>The LaTeX of Video</strong> — a declarative video compilation engine.
+</p>
+
+<p align="center">
+  Goodbye drag-and-drop, hello code-first.<br>
+  No AI magic — pure logic-driven timelines.<br>
+  Ditch the GUI, embrace hacker workflows.
+</p>
+
+<p align="center">
+  <img src="demo.gif" width="640" alt="KinetiX demo">
+</p>
 
 ## Quick Start
 
@@ -256,6 +273,10 @@ Format: mp4, Res: 1080p, FPS: 30
 ```
 parse(.ktx) → apply_styles → resolve_timeline → render(.mp4) | live_preview(ffplay) | graph(.png)
 ```
+
+Generate a timeline topology graph with `kinetix demo.ktx --graph`:
+
+![Timeline graph](demo_timeline.png)
 
 ## License
 

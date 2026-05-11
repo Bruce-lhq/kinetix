@@ -16,11 +16,11 @@ Define Style("text_hero"):
 [v_order]:    test_assets/v_order.mp4 [tech, geometric]
 [logo]:       test_assets/logo.png [overlay]
 
-# 文字卡片
-[t1]: text("告别鼠标拖拽，纯代码剪大片", font: songti, size: 64, bg_opacity: 0.0, color: "#FFFFFF", stroke_width: 2, stroke_color: "#00000060")
-[t2]: text("不搞凭空生成，用逻辑控时间", font: songti, size: 64, bg_opacity: 0.0, color: "#FFFFFF", stroke_width: 2, stroke_color: "#00000060")
-[t3]: text("彻底摒弃界面，重塑极客体验", font: songti, size: 64, bg_opacity: 0.0, color: "#FFFFFF", stroke_width: 2, stroke_color: "#00000060")
-[t4]: text("KinetiX\n视频界的LaTeX", font: heiti, size: 68, bg_opacity: 0.0, color: "#00FFCC", stroke_width: 2, stroke_color: "#00000060")
+# 文字卡片 — 中英双语，居中显示
+[t1]: text("告别鼠标拖拽，纯代码剪大片\nGoodbye drag-and-drop, hello code-first", font: songti, size: 56, bg_opacity: 0.0, color: "#FFFFFF", stroke_width: 2, stroke_color: "#00000060")
+[t2]: text("不搞凭空生成，用逻辑控时间\nNo AI magic — pure logic-driven timelines", font: songti, size: 56, bg_opacity: 0.0, color: "#FFFFFF", stroke_width: 2, stroke_color: "#00000060")
+[t3]: text("彻底摒弃界面，重塑极客体验\nDitch the GUI, embrace hacker workflows", font: songti, size: 56, bg_opacity: 0.0, color: "#FFFFFF", stroke_width: 2, stroke_color: "#00000060")
+[t4]: text("KinetiX\n 视频界的 LaTeX\n The LaTeX of Video", font: heiti, size: 60, bg_opacity: 0.0, color: "#00FFCC", stroke_width: 2, stroke_color: "#00000060")
 
 # --- 时间线编排 ---
 

@@ -1,11 +1,28 @@
-# KinetiX
+<p align="center">
+  <img src="test_assets/logo.svg" width="180" alt="KinetiX logo">
+</p>
 
-声明式视频编译引擎 — 用纯文本 `.ktx` 文件描述多轨视频时间线，编译输出 `.mp4`。
+<h1 align="center">KinetiX</h1>
 
-[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
-[![Python 3.10+](https://img.shields.io/badge/python-3.10%2B-blue.svg)](pyproject.toml)
+<p align="center">
+  <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
+  <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
+  <a href="README.md">English</a>
+</p>
 
-[English](README.md)
+<p align="center">
+  <strong>视频界的 LaTeX</strong> — 声明式视频编译引擎。
+</p>
+
+<p align="center">
+  告别鼠标拖拽，纯代码剪大片。<br>
+  不搞凭空生成，用逻辑控时间。<br>
+  彻底摒弃界面，重塑极客体验。
+</p>
+
+<p align="center">
+  <img src="demo.gif" width="640" alt="KinetiX 演示">
+</p>
 
 ## 快速开始
 
@@ -256,6 +273,10 @@ Format: mp4, Res: 1080p, FPS: 30
 ```
 parse(.ktx) → apply_styles → resolve_timeline → render(.mp4) | live_preview(ffplay) | graph(.png)
 ```
+
+使用 `kinetix demo.ktx --graph` 生成时间轴拓扑图：
+
+![时间轴拓扑图](demo_timeline.png)
 
 ## License
 
