@@ -30,6 +30,24 @@ Options:
   --no-subtitles        Skip SRT subtitle rendering
 ```
 
+## VS Code Extension
+
+Syntax highlighting + frame snapshot preview for `.ktx` files.
+
+```bash
+cp -r vscode-ktx ~/.vscode/extensions/ktx-syntax-0.2.0/
+```
+
+Then `Cmd+Shift+P` → `Developer: Reload Window`. Open any `.ktx` file:
+
+| Feature | How |
+|---------|-----|
+| Syntax highlighting | Automatic on `.ktx` files |
+| Snapshot preview | `Ctrl+Shift+K` → enter time → frame renders in side panel |
+| Command palette | `Cmd+Shift+P` → `KinetiX: Snapshot Frame at Time` |
+
+The snapshot command renders a single frame at any timecode (e.g. `5`, `1:30`, `00:05`) as a full-resolution PNG for quick visual inspection.
+
 ## .ktx Syntax
 
 ### Asset Declarations

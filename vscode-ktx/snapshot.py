@@ -5,9 +5,6 @@ Usage: python snapshot.py <file.ktx> <time> [output.png]
 import sys
 from pathlib import Path
 
-# Ensure kinetix is importable
-sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
-
 from kinetix.main import _prepare
 from kinetix.renderer import _build_all_clips
 from moviepy import CompositeVideoClip, CompositeAudioClip
