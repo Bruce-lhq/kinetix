@@ -29,7 +29,7 @@
 **Prerequisites:** Python ≥ 3.10. [ffmpeg](https://ffmpeg.org/) (optional, for `--live` preview only).
 
 ```bash
-pip install kinetix
+pip install kinetix-video
 ```
 
 Grab the [demo.ktx](demo.ktx) and test assets, then:

@@ -29,7 +29,7 @@
 **前置条件：** Python ≥ 3.10。[ffmpeg](https://ffmpeg.org/)（可选，仅 `--live` 预览需要）。
 
 ```bash
-pip install kinetix
+pip install kinetix-video
 ```
 
 下载 [demo.ktx](demo.ktx) 和测试素材，然后：
