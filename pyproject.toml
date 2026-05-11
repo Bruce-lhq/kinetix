@@ -4,7 +4,7 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "kinetix-video"
-version = "0.2.0"
+version = "0.2.1"
 description = "Declarative video compilation engine — write timelines in .ktx text, compile to .mp4"
 readme = "README.md"
 license = { text = "MIT" }

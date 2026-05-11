@@ -1,4 +1,9 @@
 <p align="center">
+  <a href="README.md"><img src="https://img.shields.io/badge/English-444" alt="English"></a>
+  <a href="README_zh.md"><img src="https://img.shields.io/badge/中文版-444" alt="中文版"></a>
+</p>
+
+<p align="center">
   <img src="test_assets/logo.svg" width="180" alt="KinetiX logo">
 </p>
 
@@ -7,7 +12,6 @@
 <p align="center">
   <a href="LICENSE"><img src="https://img.shields.io/badge/License-MIT-yellow.svg" alt="License: MIT"></a>
   <a href="pyproject.toml"><img src="https://img.shields.io/badge/python-3.10%2B-blue.svg" alt="Python 3.10+"></a>
-  <a href="README_zh.md">中文版</a>
 </p>
 
 <p align="center">
