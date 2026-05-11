@@ -37,9 +37,9 @@ dependencies = [
 template = ["jinja2>=3"]
 
 [project.urls]
-Homepage = "https://github.com/Bruce-lhq/kinetix"
-Repository = "https://github.com/Bruce-lhq/kinetix"
-Issues = "https://github.com/Bruce-lhq/kinetix/issues"
+Homepage = "https://github.com/Bruce-lhq/kinetix-video"
+Repository = "https://github.com/Bruce-lhq/kinetix-video"
+Issues = "https://github.com/Bruce-lhq/kinetix-video/issues"
 
 [project.scripts]
 kinetix = "kinetix.cli:main"

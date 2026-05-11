@@ -41,8 +41,8 @@ kinetix demo.ktx                # 编译输出 demo.mp4
 参与开发：
 
 ```bash
-git clone git@github.com:Bruce-lhq/kinetix.git
-cd kinetix
+git clone git@github.com:Bruce-lhq/kinetix-video.git
+cd kinetix-video
 pip install -e .
 ```
 

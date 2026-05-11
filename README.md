@@ -41,8 +41,8 @@ kinetix demo.ktx                # compile to demo.mp4
 To hack on the source:
 
 ```bash
-git clone git@github.com:Bruce-lhq/kinetix.git
-cd kinetix
+git clone git@github.com:Bruce-lhq/kinetix-video.git
+cd kinetix-video
 pip install -e .
 ```
 
