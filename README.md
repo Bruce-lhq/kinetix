@@ -288,6 +288,50 @@ Generate a timeline topology graph with `kinetix demo.ktx --graph`:
 
 ![Timeline graph](demo_timeline.png)
 
+## Roadmap & Contributing
+
+KinetiX is a lean, focused MVP right now — a timeline engine that does one thing well. The fun stuff is planned. If any of these excite you, PRs are wide open.
+
+### Template-driven video
+
+Support Jinja2-style `{{ variables }}` in `.ktx` files, with a Python API to feed data in.
+
+```yaml
+[t1]: text("Hi {{ user.name }}, your score is {{ score }}", font: heiti, size: 56)
+```
+
+Batch-render thousands of personalized clips from a CSV. Think: marketing, recruiting, onboarding — every SaaS company's dream.
+
+### Plugin system
+
+Expose a hook interface so developers can ship custom effects without touching KinetiX core.
+
+```yaml
+[v1] | plugin: "edge_glow", radius: 5, intensity: 1.2
+```
+
+CV researchers get a timeline engine; KinetiX gets their visual algorithms. Everyone wins.
+
+### Hardware-accelerated render backend
+
+Right now KinetiX renders frame-by-frame via moviepy on CPU. The goal: a compiler that translates `.ktx` directly into an FFmpeg filtergraph, hitting NVENC / VideoToolbox for native-speed GPU encodes. C++ and Rust performance nerds, this one's for you.
+
+### Web playground
+
+Monaco editor on the left, Wasm-powered preview on the right. Write `.ktx` in the browser, see the result instantly. No Python install required. Frontend hackers, assemble.
+
+### Native LLM bindings
+
+```python
+kinetix.ask("speed up this video by 2x and add a fade-out at the end")
+```
+
+A programmatic API that lets LLMs read and mutate the KinetiX AST in memory. If you're building AI agents, this is your playground.
+
+---
+
+Something click? Open an issue, start a discussion, or send a PR. The core is intentionally small — that's where you come in.
+
 ## License
 
 [MIT](LICENSE)

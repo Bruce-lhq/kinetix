@@ -288,6 +288,50 @@ parse(.ktx) → apply_styles → resolve_timeline → render(.mp4) | live_previe
 
 ![时间轴拓扑图](demo_timeline.png)
 
+## 路线图 & 参与贡献
+
+KinetiX 目前是一个精悍的 MVP——做好时间轴引擎这一件事。真正的重头戏在下面。这些方向中任何一项让你心动，欢迎直接提 PR。
+
+### 变量驱动与模板化
+
+让 `.ktx` 支持 Jinja2 风格的模板语法，配合 Python API 批量喂数据。
+
+```yaml
+[t1]: text("{{ user.name }}，您的得分：{{ score }}", font: heiti, size: 56)
+```
+
+从 CSV 批量渲染几千条个性化视频。营销、招聘、客户触达——每个 SaaS 公司的刚需。
+
+### 插件生态
+
+暴露 Hook 接口，开发者无需修改核心即可编写自定义特效算子。
+
+```yaml
+[v1] | plugin: "edge_glow", radius: 5, intensity: 1.2
+```
+
+CV 研究者提供视觉算法，KinetiX 提供时间轴引擎。互惠共生，特效库指数增长。
+
+### 硬件加速渲染后端
+
+目前 KinetiX 通过 moviepy 在 CPU 上逐帧渲染。未来计划：写一个编译器，将 `.ktx` 直接转译为 FFmpeg 滤镜图，调用 NVENC / VideoToolbox 进行 GPU 原生速度编码。C++ 和 Rust 性能极客的主场。
+
+### Web 在线游乐场
+
+左边 Monaco 编辑器写 `.ktx`，右边 Wasm 驱动的实时视频预览。无需装 Python 就能体验「代码剪辑」。前端大佬的封神之地。
+
+### 官方 LLM 绑定
+
+```python
+kinetix.ask("把这个视频节奏加快一倍，末尾加个淡出")
+```
+
+标准化的 Python API，让 LLM 直接读写 KinetiX 内存中的 AST。搞 AI Agent 的一看就懂。
+
+---
+
+哪个方向让你手痒？开个 Issue、参与讨论、或者直接发 PR。核心故意做得很小——就是为了让你有发挥空间。
+
 ## License
 
 [MIT](LICENSE)
