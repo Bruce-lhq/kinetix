@@ -15,10 +15,11 @@ kinetix/
   ast_nodes.py     数据类: Asset, Style, KeyframeTrack (含 Easing), TimelineEntry, KinetiXDocument
   parser.py        parse(source) → KinetiXDocument  (正则 + Define Style 块解析)
   main.py          _apply_styles + resolve_timeline (表达式求解 + 音频避让) + compile_ktx
+  template.py      Jinja2 模板渲染 (render_template, --var / --data CLI)
   renderer.py      render / live_preview → moviepy + ffplay, easing + rotate + filter
-  text_card.py     PIL 渲染 (自动换行, 行间距, 半透明背景块)
+  text_card.py     PIL 渲染 (自动换行, 行间距, 半透明背景块, anchor='lt')
   subtitles.py     parse_srt(path) → list[Subtitle]
-  graphviz_timeline.py  generate_timeline_graph(doc) → PNG 时间轴拓扑图
+  timeline_graph.py    generate_timeline_graph(doc) → PNG 时间轴拓扑图 (同轨叠化高亮)
   cli.py           argparse CLI (kinetix --live / --preview / --graph / --no-subtitles)
 pyproject.toml     包配置 (console_scripts)
 requirements.txt   moviepy>=2.1, numpy>=1.24, Pillow>=10
@@ -29,6 +30,7 @@ README.md          用户文档
 
 ```
 .ktx 文本
+  → template.render_template(source, variables)  (Jinja2 模板替换, 可选)
   → parser.parse() → KinetiXDocument (assets + styles + timeline + output + subtitle_path)
   → main._resolve_asset_paths(doc, base_dir)  (相对路径 → 绝对路径)
   → main._apply_styles(doc)            (style 属性合并到引用的 entry)
@@ -62,6 +64,13 @@ README.md          用户文档
 - 无 `pos` 且 anchor 为默认 `(0,0)` 时，使用 `with_position(('center', 'center'))` **动态居中** — 每帧重算位置，适配关键帧驱动的尺寸变化
 - 有 `pos` 时固定位置优先于 anchor
 - 图片先 contain 再定位、再应用关键帧（尺寸变化时居中跟随）
+
+### 模板
+- `.ktx` 支持 Jinja2 语法 `{{ variables }}`
+- `--var key=value` 命令行传参, `--data file.json` 批量加载
+- Python API: `compile_template(path, vars_dict)` (→ `kinetix/main.py`)
+- `jinja2` 为可选依赖 (`pip install kinetix-video[template]`)
+- 无模板语法时零开销跳过, 不依赖 jinja2
 
 ### 预览
 - `--preview START-END`: 过滤窗口内片段 + `_trim_to_preview` 偏移归零, 字幕跟随
@@ -163,3 +172,5 @@ git commit -m "<type>: <简短描述>"
 | 改时间轴图 | `graphviz_timeline.py` → `generate_timeline_graph()` | `rows`, y-axis ordering |
 | 改音频避让 | `main.py` → `_compute_audio_ducking()` | `track_role` |
 | 改路径解析 | `main.py` → `_resolve_asset_paths()` | `compile_ktx` / `live_mode` / `graph_mode` |
+| 改模板变量 | `template.py` → `render_template()` | `main.py` → `_prepare()`, `cli.py` → `--var`/`--data` |
+| 加 CLI 选项 | `cli.py` → `main()` | `argparse` 参数 → 传入 `compile_ktx`/`live_mode`/`graph_mode` |
