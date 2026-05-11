@@ -29,11 +29,21 @@
 **Prerequisites:** Python ≥ 3.10. [ffmpeg](https://ffmpeg.org/) (optional, for `--live` preview only).
 
 ```bash
+pip install kinetix
+```
+
+Grab the [demo.ktx](demo.ktx) and test assets, then:
+
+```bash
+kinetix demo.ktx                # compile to demo.mp4
+```
+
+To hack on the source:
+
+```bash
 git clone git@github.com:Bruce-lhq/kinetix.git
 cd kinetix
 pip install -e .
-kinetix demo.ktx                # compile to demo.mp4
-open demo.mp4                   # play the output video
 ```
 
 ## CLI

@@ -29,11 +29,21 @@
 **前置条件：** Python ≥ 3.10。[ffmpeg](https://ffmpeg.org/)（可选，仅 `--live` 预览需要）。
 
 ```bash
+pip install kinetix
+```
+
+下载 [demo.ktx](demo.ktx) 和测试素材，然后：
+
+```bash
+kinetix demo.ktx                # 编译输出 demo.mp4
+```
+
+参与开发：
+
+```bash
 git clone git@github.com:Bruce-lhq/kinetix.git
 cd kinetix
 pip install -e .
-kinetix demo.ktx                # 编译输出 demo.mp4
-open demo.mp4                   # 播放视频
 ```
 
 ## 命令行
